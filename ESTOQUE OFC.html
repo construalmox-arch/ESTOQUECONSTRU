@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONSTRUCABLE - LOGISTICS PRO V28</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --claro-red: #ee2e24;
+            --led-color: 0 0 20px rgba(238, 46, 36, 0.9);
+            --led-green: 0 0 20px rgba(0, 255, 100, 0.9);
+            --bg-dark: #050505;
+        }
+
+        /* Estilos de Notificação */
+        #notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        .toast {
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 15px 25px;
+            border-left: 5px solid var(--claro-red);
+            margin-bottom: 10px;
+            border-radius: 4px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: bold;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* Botão de Troca de Cor */
+        .color-picker-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--claro-red);
+            border: none;
+            cursor: pointer;
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: var(--led-color);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Rajdhani', sans-serif; }
+        body, html { height: 100%; background-color: var(--bg-dark); color: #fff; overflow-x: hidden; }
+        
+        #bg-canvas { position: fixed; width: 100%; height: 100%; z-index: -1; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%); overflow: hidden; }
+        .emoji { position: absolute; font-size: 6rem; opacity: 0.15; pointer-events: none; animation: float linear infinite; }
+        @keyframes float { from { transform: translateY(110vh) rotate(0deg); } to { transform: translateY(-30vh) rotate(360deg); } }
+
+        #page-login { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 2000; background: var(--bg-dark); }
+        .login-box { background: rgba(10,10,10,0.95); padding: 40px; border: 2px solid var(--claro-red); box-shadow: var(--led-color); width: 380px; text-align: center; border-radius: 12px; }
+
+        #page-menu { display: none; min-height: 100vh; width: 100%; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; width: 90%; max-width: 900px; }
+        .menu-card { background: rgba(20, 20, 20, 0.9); border: 2px solid #333; padding: 50px 20px; border-radius: 20px; text-align: center; cursor: pointer; transition: 0.4s; }
+        .menu-card:hover { border-color: var(--claro-red); box-shadow: var(--led-color); transform: scale(1.05); }
+        .menu-card.blue:hover { border-color: #00c3ff; box-shadow: 0 0 20px rgba(0, 195, 255, 0.8); }
+
+        #page-dash { display: none; flex-direction: column; min-height: 100vh; background: var(--bg-dark); }
+        header { padding: 15px 25px; border-bottom: 2px solid var(--claro-red); background: #000; display: flex; justify-content: space-between; align-items: center; }
+        
+        .nav-tabs { display: flex; background: #0a0a0a; border-bottom: 1px solid #222; overflow-x: auto; }
+        .tab-btn { padding: 18px 25px; background: transparent; border: none; color: #666; cursor: pointer; text-transform: uppercase; font-weight: bold; border-bottom: 4px solid transparent; }
+        .tab-btn.active { color: #fff; border-bottom-color: var(--claro-red); text-shadow: var(--led-color); }
+
+        .tab-content { display: none; padding: 25px; animation: fadeIn 0.4s; }
+        .tab-content.active { display: block; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { background: rgba(15, 15, 15, 0.95); border: 1px solid #333; padding: 25px; border-radius: 10px; margin-bottom: 20px; }
+        
+        .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #333; }
+        .summary-table th { background: #111; color: var(--claro-red); padding: 12px; text-align: left; }
+        .summary-table td { padding: 12px; border: 1px solid #333; font-weight: bold; }
+
+        button { padding: 14px; cursor: pointer; border-radius: 6px; font-weight: bold; text-transform: uppercase; transition: 0.3s; width: 100%; border: 2px solid transparent; }
+        .btn-green { border-color: #00ff64; color: #00ff64; background: transparent; }
+        .btn-green:hover { background: #00ff64; color: #000; }
+        .btn-red { border-color: var(--claro-red); color: var(--claro-red); background: transparent; }
+        .btn-red:hover { background: var(--claro-red); color: #fff; }
+        .btn-blue { border-color: #00c3ff; color: #00c3ff; background: transparent; }
+        .btn-blue:hover { background: #00c3ff; color: #000; }
+
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 4px; }
+        .list-box { height: 350px; overflow-y: auto; background: rgba(0,0,0,0.6); padding: 10px; border: 1px solid #222; }
+        .item-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #1a1a1a; align-items: center; }
+        .item-row.checked { background: rgba(0, 255, 100, 0.25); border: 1px solid #00ff64; box-shadow: inset 0 0 15px rgba(0, 255, 100, 0.2); }
+        .btn-del { width: auto; padding: 5px 10px; color: #555; background: none; border: none; cursor: pointer; font-size: 1.2rem; }
+        .btn-del:hover { color: var(--claro-red); }
+
+        .stat-card { background: #111; padding: 15px; border-radius: 8px; border-left: 4px solid var(--claro-red); text-align: center; }
+        
+        .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-family: Orbitron; }
+        .status-red { background: rgba(238, 46, 36, 0.2); color: #ee2e24; border: 1px solid #ee2e24; box-shadow: var(--led-color); }
+        .status-green { background: rgba(0, 255, 100, 0.2); color: #00ff64; border: 1px solid #00ff64; box-shadow: var(--led-green); }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        #print-area { display: none; }
+        @media print { 
+            body * { visibility: hidden; } 
+            #print-area { display: block !important; visibility: visible !important; position: absolute; left: 0; top: 0; width: 100%; color: #000 !important; }
+            #print-area * { visibility: visible !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="notification-container"></div>
+<button class="color-picker-btn" onclick="toggleTheme()" title="Mudar Cor do Sistema">🎨</button>
+
+<div id="bg-canvas"></div>
+
+<div id="page-login">
+    <div class="login-box">
+        <h1 style="font-family: Orbitron; color: var(--claro-red); font-size: 2rem;">CONSTRUCABLE</h1>
+        <p style="letter-spacing: 5px; font-size: 0.7rem; margin-bottom: 25px; opacity: 0.7;">LOGISTICS PRO SYSTEM</p>
+        <input type="text" id="user-input" placeholder="USUÁRIO">
+        <input type="password" id="pass-input" placeholder="SENHA">
+        <button class="btn-red" onclick="handleLogin()">ENTRAR</button>
+    </div>
+</div>
+
+<div id="page-menu">
+    <h1 style="font-family: Orbitron; margin-bottom: 20px; text-shadow: var(--led-color);">MENU PRINCIPAL</h1>
+    <p id="welcome-msg" style="margin-bottom: 30px; color: var(--claro-red); font-weight: bold;"></p>
+    <div class="menu-grid">
+        <div class="menu-card" onclick="openEstoque()">
+            <div style="font-size: 5rem;">📦</div>
+            <span style="font-family: Orbitron;">ESTOQUE</span>
+        </div>
+        <div class="menu-card" onclick="notify('Aba em desenvolvimento!', 'warning')">
+            <div style="font-size: 5rem; opacity: 0.5;">📥</div>
+            <span style="font-family: Orbitron; opacity: 0.5;">ENTRADA</span>
+        </div>
+        <div class="menu-card blue" onclick="gerarBackupCompleto()">
+            <div style="font-size: 5rem; color: #00c3ff;">💾</div>
+            <span style="font-family: Orbitron; color: #00c3ff;">BACKUP EXCEL</span>
+        </div>
+    </div>
+    <button class="btn-red" style="width: 200px; margin-top: 40px;" onclick="handleLogout()">SAIR / LOGOUT</button>
+</div>
+
+<div id="page-dash">
+    <header>
+        <h2 style="font-family: Orbitron;">CONSTRUCABLE <span style="color:var(--claro-red)">// <span id="op-name"></span></span></h2>
+        <div style="display:flex; gap:15px;">
+            <button class="btn-green" style="width:auto; padding:5px 20px" onclick="backToMenu()">VOLTAR AO MENU</button>
+            <div id="clock" style="color:#fff; align-self:center; font-family:monospace; background:#111; padding:5px 10px; border:1px solid #333"></div>
+        </div>
+    </header>
+
+    <nav class="nav-tabs">
+        <button class="tab-btn active" onclick="showTab(event, 'master')">Estoque ADM</button>
+        <button class="tab-btn" onclick="showTab(event, 'transfer-tech')">Transferência</button>
+        <button class="tab-btn" onclick="showTab(event, 'carga')">Saída p/ Técnico</button>
+        <button class="tab-btn" onclick="showTab(event, 'baixa')">Baixa Assinante</button>
+        <button class="tab-btn" onclick="showTab(event, 'mala')">Mala / Conferência</button>
+        <button class="tab-btn" onclick="showTab(event, 'busca')">Busca Serial</button>
+        <button class="tab-btn" onclick="showTab(event, 'logs')">Histórico</button>
+        <button class="tab-btn" onclick="showTab(event, 'users')">Usuários</button>
+    </nav>
+
+    <div id="master" class="tab-content active">
+        <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
+            <div class="stat-card"><h4>ADM</h4><p id="stat-adm">0</p></div>
+            <div class="stat-card"><h4>TÉCNICOS</h4><p id="stat-tech">0</p></div>
+            <div class="stat-card"><h4>TOTAL</h4><p id="stat-total">0</p></div>
+        </div>
+        <div class="grid">
+            <div class="panel">
+                <h3>📥 IMPORTAR / ADICIONAR</h3>
+                <input type="file" id="file-upload" accept=".xlsx, .xls">
+                <input type="text" id="man-sn" placeholder="Número Série">
+                <input type="text" id="man-mod" placeholder="Modelo">
+                <button class="btn-green" onclick="addManual()">ADICIONAR MANUAL</button>
+                <button class="btn-red" style="margin-top:15px;" onclick="clearOnlyADM()">⚠️ LIMPAR APENAS ESTOQUE ADM</button>
+            </div>
+            <div class="panel">
+                <h3>👥 GESTÃO DE TÉCNICOS / EXPORTAR</h3>
+                <input type="text" id="tech-name" placeholder="Nome Completo">
+                <input type="text" id="tech-login" placeholder="Login/Matrícula">
+                <button class="btn-green" onclick="addTech()">CADASTRAR TÉCNICO</button>
+                <div id="list-techs" class="list-box" style="height:120px; margin-top:10px"></div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-top:10px">
+                    <button class="btn-blue" style="font-size: 0.7rem;" onclick="exportExcelADM()">📊 EXCEL ADM</button>
+                    <button class="btn-blue" style="font-size: 0.7rem;" onclick="exportExcelTechs()">📊 EXCEL TECS</button>
+                    <button class="btn-blue" style="font-size: 0.7rem;" onclick="exportExcelLogs()">📊 EXCEL HIST</button>
+                </div>
+            </div>
+        </div>
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3>📦 LISTA ADM</h3>
+                <input type="text" id="search-adm-list" placeholder="🔍 Procurar serial..." oninput="renderMaster()" style="width: 300px; margin: 0;">
+            </div>
+            <table class="summary-table">
+                <thead><tr><th>MODELO</th><th>ADM</th><th>TECS</th><th>TOTAL</th></tr></thead>
+                <tbody id="sum-master"></tbody>
+            </table>
+            <div id="list-master" class="list-box"></div>
+        </div>
+    </div>
+
+    <div id="mala" class="tab-content">
+        <div class="panel">
+            <h3>🎒 CONFERÊNCIA FÍSICA</h3>
+            <div class="grid" style="grid-template-columns: 2fr 1fr;">
+                <select id="sel-view-mala" onchange="renderMalaCompleta(this.value)"></select>
+                <button class="btn-red" onclick="resetConferencia()">🔄 RESETAR VERDES</button>
+            </div>
+            
+            <div id="resumo-mala-container" style="margin-top:20px; display:none;">
+                <div style="text-align: center; margin-bottom: 20px;"><div id="mala-status-sinalizador" class="status-badge"></div></div>
+                <div class="grid">
+                    <div class="panel">
+                        <input type="text" id="bip-conferencia" placeholder="BIPE PARA CONFERIR" onkeypress="marcarConferido(event)" style="border: 2px solid #00ff64; font-size: 1.2rem;">
+                        <div id="list-mala-items" class="list-box" style="margin-top:15px"></div>
+                        <button class="btn-blue" style="margin-top:15px" onclick="imprimirConferencia()">🖨️ RELATÓRIO DE CONFERÊNCIA</button>
+                    </div>
+                    <div class="panel"><h4>📊 RESUMO EM MALA</h4><div id="panel-resumo-tecnico" style="font-size: 0.9rem; margin-top:10px"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="carga" class="tab-content">
+        <div class="panel">
+            <div class="grid">
+                <div>
+                    <h3>⚡ SAÍDA PARA TÉCNICO</h3>
+                    <select id="sel-tech-carga"><option value="">Selecione o Técnico...</option></select>
+                    <input type="text" id="bip-carga" placeholder="BIPE O SERIAL E ENTER" onkeypress="handleBipeCarga(event)">
+                    <textarea id="lote-carga" rows="5" placeholder="Ou cole vários seriais aqui..."></textarea>
+                    <button class="btn-blue" onclick="addLoteCarga()">VALIDAR LOTE</button>
+                    <button id="btn-confirm-carga" class="btn-green" style="margin-top:20px" onclick="confirmarCarga()">FINALIZAR SAÍDA</button>
+                    <button id="btn-print" class="btn-red" style="display:none" onclick="imprimirComprovante()">🖨️ IMPRIMIR RECIBO</button>
+                </div>
+                <div>
+                    <h3>📋 FILA DE ESPERA <span id="queue-count" style="color:var(--claro-red);">(0)</span></h3>
+                    <div id="list-queue" class="list-box"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="transfer-tech" class="tab-content">
+        <div class="panel">
+            <h3>🔄 MOVIMENTAÇÃO ENTRE MALAS</h3>
+            <div class="grid">
+                <div><label>De:</label><select id="sel-tech-origem" onchange="renderMalaOrigem(this.value)"></select></div>
+                <div><label>Para:</label><select id="sel-tech-destino"></select></div>
+            </div>
+            <div style="margin-top:15px; border:1px solid #444; padding:15px">
+                <input type="text" id="bip-trans" placeholder="Bipe Serial..." onkeypress="addBipTrans(event)">
+                <textarea id="lote-trans" rows="2" placeholder="Ou cole seriais..."></textarea>
+                <button class="btn-blue" onclick="addLoteTrans()">INCLUIR NA FILA</button>
+            </div>
+            <div class="grid" style="margin-top:20px">
+                <div class="panel"><h4>Mala Origem</h4><div id="list-mala-origem" class="list-box"></div></div>
+                <div class="panel"><h4>Fila de Movimento <span id="trans-queue-count" style="color:var(--claro-red)">(0)</span></h4><div id="list-transfer-queue" class="list-box"></div></div>
+            </div>
+            <button class="btn-green" onclick="executarMovimentacao()">EXECUTAR TRANSFERÊNCIA DEFINITIVA</button>
+        </div>
+    </div>
+
+    <div id="baixa" class="tab-content">
+        <div class="panel">
+            <h3>📉 BAIXA POR ASSINANTE / RETIRADA</h3>
+            <textarea id="txt-baixa" rows="10" placeholder="Cole os seriais para remover..."></textarea>
+            <button class="btn-red" onclick="executarBaixa()">BAIXAR (REMOVER DO SISTEMA)</button>
+        </div>
+    </div>
+
+    <div id="busca" class="tab-content">
+        <div class="panel">
+            <h3>🔍 RASTREAR SERIAL</h3>
+            <input type="text" placeholder="Digite e Enter" onkeypress="consultar(event)">
+            <div id="search-result" style="text-align:center; margin-top:20px; color:var(--claro-red); font-size: 1.2rem;"></div>
+        </div>
+    </div>
+
+    <div id="logs" class="tab-content">
+        <div class="panel">
+            <h3>📜 HISTÓRICO GERAL</h3>
+            <div id="list-logs" class="list-box" style="height:500px"></div>
+        </div>
+    </div>
+
+    <div id="users" class="tab-content">
+        <div class="panel">
+            <h3>🔑 GESTÃO DE OPERADORES</h3>
+            <div class="grid">
+                <div>
+                    <input type="text" id="new-user-name" placeholder="Nome do Operador">
+                    <input type="password" id="new-user-pass" placeholder="Senha">
+                    <button class="btn-green" onclick="addUser()">CADASTRAR OPERADOR</button>
+                </div>
+                <div id="list-users" class="list-box"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="print-area"></div>
+
+<script>
+    // Gerenciamento de Cores
+    const themes = [
+        { name: 'Red', main: '#ee2e24', led: '0 0 20px rgba(238, 46, 36, 0.9)' },
+        { name: 'Blue', main: '#00c3ff', led: '0 0 20px rgba(0, 195, 255, 0.9)' },
+        { name: 'Green', main: '#00ff64', led: '0 0 20px rgba(0, 255, 100, 0.9)' },
+        { name: 'Purple', main: '#bc13fe', led: '0 0 20px rgba(188, 19, 254, 0.9)' }
+    ];
+    let currentThemeIdx = parseInt(localStorage.getItem('cc_theme')) || 0;
+
+    function applyTheme() {
+        const t = themes[currentThemeIdx];
+        document.documentElement.style.setProperty('--claro-red', t.main);
+        document.documentElement.style.setProperty('--led-color', t.led);
+        localStorage.setItem('cc_theme', currentThemeIdx);
+    }
+
+    function toggleTheme() {
+        currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+        applyTheme();
+        notify(`Tema ${themes[currentThemeIdx].name} aplicado!`);
+    }
+
+    // Sistema de Notificação
+    function notify(msg, type = 'success') {
+        const container = document.getElementById('notification-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.style.borderLeftColor = type === 'success' ? 'var(--claro-red)' : '#ffcc00';
+        toast.innerText = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Inicialização do DB
+    let db = JSON.parse(localStorage.getItem('cc_db_v28')) || { 
+        master: [], 
+        techs: [], 
+        logs: [], 
+        users: [{name: 'ADMIN', pass: 'admin'}] 
+    };
+    
+    let currentUser = null;
+    let queue = [];
+    let transQueue = [];
+    let lastCarga = null;
+    let conferidos = new Set();
+
+    applyTheme();
+
+    function save() { localStorage.setItem('cc_db_v28', JSON.stringify(db)); }
+    function now() { return new Date().toLocaleString('pt-BR'); }
+
+    // LOGIN
+    function handleLogin() {
+        const u = document.getElementById('user-input').value.toUpperCase();
+        const p = document.getElementById('pass-input').value;
+        const found = db.users.find(x => x.name === u && x.pass === p);
+        
+        if(found) {
+            currentUser = found.name;
+            document.getElementById('page-login').style.display = 'none';
+            document.getElementById('page-menu').style.display = 'flex';
+            document.getElementById('welcome-msg').innerText = `BEM-VINDO, ${currentUser}`;
+            document.getElementById('op-name').innerText = currentUser;
+            initEmojis();
+            notify(`Acesso autorizado: ${currentUser}`);
+        } else {
+            notify("Usuário ou Senha incorretos!", "error");
+        }
+    }
+    
+    function handleLogout() { location.reload(); }
+    function backToMenu() { document.getElementById('page-dash').style.display = 'none'; document.getElementById('page-menu').style.display = 'flex'; }
+    function openEstoque() { document.getElementById('page-menu').style.display = 'none'; document.getElementById('page-dash').style.display = 'flex'; updateAll(); }
+    function showTab(e, id) { 
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active')); 
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
+        document.getElementById(id).classList.add('active'); 
+        if(e) e.currentTarget.classList.add('active'); 
+    }
+
+    // --- FUNÇÃO DE BACKUP GERAL (SOLICITADA) ---
+    function gerarBackupCompleto() {
+        const wb = XLSX.utils.book_new();
+        
+        // 1. Estoque ADM
+        const dataAdm = db.master.filter(i => i.status === 'estoque').map(i => ({ "Serial": i.serial, "Modelo": i.modelo, "Data Entrada": i.dataHora, "Operador": i.operador }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataAdm), "ESTOQUE_ADM");
+
+        // 2. Estoque Técnicos
+        const dataTechs = [];
+        db.techs.forEach(t => t.mala.forEach(m => dataTechs.push({ "Técnico": t.name, "Login": t.login, "Serial": m.serial, "Modelo": m.modelo, "Carga": m.dataHora, "Operador": m.operador })));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTechs), "ESTOQUE_TECNICOS");
+
+        // 3. Histórico de Movimentações
+        const dataLogs = [];
+        db.logs.forEach(l => l.items.forEach(i => dataLogs.push({ "Data": l.date, "Tipo": l.type, "Resp": l.tech, "Serial": i.serial, "Modelo": i.modelo, "Operador": l.op || 'Sist' })));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataLogs), "HISTORICO_MOVIMENTACAO");
+
+        XLSX.writeFile(wb, `BACKUP_GERAL_CONSTRUCABLE_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
+        notify("Backup Geral gerado com sucesso!");
+    }
+
+    // GESTÃO DE USUÁRIOS
+    function addUser() {
+        const n = document.getElementById('new-user-name').value.trim().toUpperCase();
+        const p = document.getElementById('new-user-pass').value.trim();
+        if(n && p) {
+            db.users.push({name: n, pass: p});
+            document.getElementById('new-user-name').value = '';
+            document.getElementById('new-user-pass').value = '';
+            updateAll();
+            notify("Novo operador cadastrado!");
+        }
+    }
+
+    function isSerialInAnyMala(sn) {
+        return db.techs.some(t => t.mala.some(m => m.serial === sn));
+    }
+
+    function addManual() {
+        const sn = document.getElementById('man-sn').value.trim().toUpperCase();
+        const mod = document.getElementById('man-mod').value.trim().toUpperCase();
+        if(!sn || !mod) return;
+        
+        if(isSerialInAnyMala(sn)) {
+            notify("Erro: Serial em posse de técnico!", "error");
+            return;
+        }
+        
+        if(db.master.some(i => i.serial === sn)) {
+            notify("Erro: Serial já existe no ADM!", "error");
+            return;
+        }
+
+        db.master.push({ serial: sn, modelo: mod, status: 'estoque', dataHora: now(), operador: currentUser });
+        updateAll();
+        document.getElementById('man-sn').value = '';
+        document.getElementById('man-mod').value = '';
+        notify("Item adicionado manualmente!");
+    }
+
+    function clearOnlyADM() {
+        if(confirm("Deseja remover todos os seriais que estão no Estoque ADM?")) {
+            db.master = db.master.filter(i => i.status !== 'estoque');
+            db.logs.unshift({ tech: "SISTEMA", items: [{serial: 'LIMPEZA ADM', modelo: 'TODOS'}], date: now(), type: 'LIMPEZA', op: currentUser });
+            updateAll();
+            notify("Estoque ADM limpo com sucesso!");
+        }
+    }
+
+    function confirmarCarga() {
+        const tIdx = document.getElementById('sel-tech-carga').value;
+        if(tIdx === '' || queue.length === 0) return notify("Selecione técnico e valide itens!", "error");
+        const tec = db.techs[tIdx]; const h = now();
+        lastCarga = { tech: tec.name, login: tec.login, items: [...queue], date: h, op: currentUser };
+        
+        queue.forEach(q => {
+            const m = db.master.find(i => i.serial === q.serial);
+            m.status = 'tecnico'; 
+            m.dataHora = h; 
+            m.operador = currentUser;
+            tec.mala.push({...m});
+        });
+
+        db.logs.unshift({ ...lastCarga, type: 'SAÍDA' });
+        queue = []; renderQueue(); updateAll();
+        document.getElementById('btn-confirm-carga').style.display = 'none'; document.getElementById('btn-print').style.display = 'block';
+        notify("Carga realizada para " + tec.name);
+    }
+
+    function consultar(e) {
+        if(e.key === 'Enter') {
+            const sn = e.target.value.toUpperCase();
+            let r = "❌ NÃO ENCONTRADO NO SISTEMA";
+            
+            const noAdm = db.master.find(i => i.serial === sn && i.status === 'estoque');
+            if(noAdm) r = `✅ EM ADM | Desde: ${noAdm.dataHora} | Por: ${noAdm.operador || 'Sistema'}`;
+            
+            db.techs.forEach(t => {
+                const noTec = t.mala.find(m => m.serial === sn);
+                if(noTec) r = `👤 COM TÉCNICO: ${t.name} | Carga: ${noTec.dataHora} | Por: ${noTec.operador || 'Sistema'}`;
+            });
+            
+            document.getElementById('search-result').innerText = r;
+            notify("Busca concluída.");
+        }
+    }
+
+    function updateAll() {
+        save(); renderStats(); renderMaster(); renderLogs();
+        const opts = '<option value="">Selecione...</option>' + db.techs.map((t,i) => `<option value="${i}">${t.name}</option>`).join('');
+        ['sel-tech-carga', 'sel-view-mala', 'sel-tech-origem'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerHTML = opts; });
+        document.getElementById('sel-tech-destino').innerHTML = opts + '<option value="ADM">🏠 ESTOQUE ADM</option>';
+        document.getElementById('list-techs').innerHTML = db.techs.map((t, i) => `<div class="item-row"><span><b>${t.name}</b> (${t.login})</span><div style="display:flex; gap:10px; align-items:center;"><span style="color:var(--claro-red); font-weight:bold">${t.mala.length} itens</span><button class="btn-del" onclick="if(confirm('Excluir técnico?')){db.techs.splice(${i},1);updateAll();notify('Técnico excluído');}">✖</button></div></div>`).join('');
+        document.getElementById('list-users').innerHTML = db.users.map((u, i) => `<div class="item-row"><span>${u.name}</span>${u.name !== 'ADMIN' ? `<button class="btn-del" onclick="db.users.splice(${i},1);updateAll();notify('Operador removido');">✖</button>` : ''}</div>`).join('');
+    }
+
+    function renderStats() { const adm = db.master.filter(i => i.status === 'estoque').length; let tech = 0; db.techs.forEach(t => tech += t.mala.length); document.getElementById('stat-adm').innerText = adm; document.getElementById('stat-tech').innerText = tech; document.getElementById('stat-total').innerText = adm + tech; }
+    
+    function renderMaster() {
+        const filter = document.getElementById('search-adm-list').value.toUpperCase();
+        const items = db.master.filter(i => i.status === 'estoque' && (i.serial.includes(filter) || i.modelo.includes(filter)));
+        const models = {};
+        db.master.forEach(i => { if(!models[i.modelo]) models[i.modelo] = { adm: 0, tech: 0 }; i.status === 'estoque' ? models[i.modelo].adm++ : models[i.modelo].tech++; });
+        document.getElementById('sum-master').innerHTML = Object.keys(models).sort().map(m => `<tr><td>${m}</td><td>${models[m].adm}</td><td>${models[m].tech}</td><td style="color:red">${models[m].adm + models[m].tech}</td></tr>`).join('');
+        document.getElementById('list-master').innerHTML = items.map(i => `<div class="item-row"><span><b>${i.serial}</b> - ${i.modelo} <br><small>Entrada: ${i.dataHora} por ${i.operador || 'Sist'}</small></span><button class="btn-del" onclick="db.master=db.master.filter(x=>x.serial!=='${i.serial}');updateAll();notify('Serial removido')">✖</button></div>`).join('');
+    }
+
+    function exportExcelLogs() { let data = []; db.logs.forEach(l => l.items.forEach(i => data.push({ "Data": l.date, "Tipo": l.type, "Resp": l.tech, "Serial": i.serial, "Modelo": i.modelo, "Operador": l.op || 'Sist' }))); const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Hist"); XLSX.writeFile(wb, "Historico_Construcable.xlsx"); notify("Exportando Histórico..."); }
+    function exportExcelADM() { const data = db.master.filter(i => i.status === 'estoque').map(i => ({ "Serial": i.serial, "Modelo": i.modelo, "Data Entrada": i.dataHora, "Operador": i.operador })); const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "ADM"); XLSX.writeFile(wb, "Estoque_ADM.xlsx"); notify("Exportando ADM..."); }
+    function exportExcelTechs() { let data = []; db.techs.forEach(t => t.mala.forEach(m => data.push({ "Técnico": t.name, "Login": t.login, "Serial": m.serial, "Modelo": m.modelo, "Carga": m.dataHora, "Operador": m.operador }))); const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "TECS"); XLSX.writeFile(wb, "Estoque_Tecnicos.xlsx"); notify("Exportando Técnicos..."); }
+
+    function addBipTrans(e) { if(e.key === 'Enter') { const sn = e.target.value.trim().toUpperCase(); const oIdx = document.getElementById('sel-tech-origem').value; const mIdx = db.techs[oIdx]?.mala.findIndex(m => m.serial === sn); if(mIdx !== -1) moveToTrans(oIdx, mIdx); e.target.value = ''; } }
+    function addLoteTrans() { const oIdx = document.getElementById('sel-tech-origem').value; const lines = document.getElementById('lote-trans').value.split('\n').map(s => s.trim().toUpperCase()).filter(s => s !== ""); lines.forEach(sn => { const mIdx = db.techs[oIdx].mala.findIndex(m => m.serial === sn); if(mIdx !== -1) transQueue.push(db.techs[oIdx].mala.splice(mIdx, 1)[0]); }); document.getElementById('lote-trans').value = ''; renderMalaOrigem(oIdx); renderTransQueue(); notify("Lote adicionado à fila de transferência."); }
+    function moveToTrans(tIdx, iIdx) { transQueue.push(db.techs[tIdx].mala.splice(iIdx, 1)[0]); renderMalaOrigem(tIdx); renderTransQueue(); }
+    function renderTransQueue() { document.getElementById('trans-queue-count').innerText = `(${transQueue.length})`; document.getElementById('list-transfer-queue').innerHTML = transQueue.map((i, idx) => `<div class="item-row"><span>${i.serial}</span><button class="btn-del" onclick="const itm=transQueue.splice(${idx},1)[0]; db.techs[document.getElementById('sel-tech-origem').value].mala.push(itm); renderMalaOrigem(document.getElementById('sel-tech-origem').value); renderTransQueue();">✖</button></div>`).join(''); }
+    function renderMalaOrigem(idx) { if(idx === '') return; document.getElementById('list-mala-origem').innerHTML = db.techs[idx].mala.map((i, subIdx) => `<div class="item-row"><span>${i.serial}</span><button class="btn-green" style="width:auto; padding:2px 10px" onclick="moveToTrans(${idx}, ${subIdx})">➔</button></div>`).join(''); }
+    function executarMovimentacao() {
+        const oIdx = document.getElementById('sel-tech-origem').value; const dest = document.getElementById('sel-tech-destino').value; if(dest === '') return notify("Selecione o destino!", "error"); const h = now();
+        if(dest === 'ADM') { transQueue.forEach(q => { const m = db.master.find(i => i.serial === q.serial); m.status = 'estoque'; m.dataHora = h; m.operador = currentUser; }); db.logs.unshift({ tech: db.techs[oIdx].name + " > ADM", items: [...transQueue], date: h, type: 'DEVOLUÇÃO', op: currentUser }); }
+        else { transQueue.forEach(q => { const m = db.master.find(i => i.serial === q.serial); m.dataHora = h; m.operador = currentUser; db.techs[dest].mala.push({...m}); }); db.logs.unshift({ tech: db.techs[oIdx].name + " > " + db.techs[dest].name, items: [...transQueue], date: h, type: 'TRANSF', op: currentUser }); }
+        transQueue = []; updateAll(); notify("Transferência concluída!");
+    }
+
+    function handleBipeCarga(e) {
+        if(e.key === 'Enter') {
+            const sn = e.target.value.trim().toUpperCase();
+            if(!sn) return;
+            const item = db.master.find(i => i.serial === sn && i.status === 'estoque');
+            if(item) {
+                if(!queue.some(q => q.serial === sn)) { queue.push({...item}); renderQueue(); notify("Item bipado!"); } else { notify("Item já na fila!", "error"); }
+            } else { notify("Serial não disponível no ADM!", "error"); }
+            e.target.value = '';
+        }
+    }
+    function addLoteCarga() {
+        const lines = document.getElementById('lote-carga').value.split('\n').map(s => s.trim().toUpperCase()).filter(s => s !== "");
+        lines.forEach(sn => {
+            const item = db.master.find(i => i.serial === sn && i.status === 'estoque');
+            if(item && !queue.some(q => q.serial === sn)) queue.push({...item});
+        });
+        document.getElementById('lote-carga').value = ''; renderQueue(); notify("Lote validado.");
+    }
+    function renderQueue() { 
+        document.getElementById('queue-count').innerText = `(${queue.length})`;
+        document.getElementById('list-queue').innerHTML = queue.map(i => `<div class="item-row"><span><b>${i.modelo}</b> | ${i.serial}</span><button class="btn-del" onclick="queue=queue.filter(q=>q.serial!=='${i.serial}');renderQueue()">✖</button></div>`).join(''); 
+    }
+
+    function marcarConferido(e) { if(e.key === 'Enter') { const sn = e.target.value.trim().toUpperCase(); conferidos.add(sn); e.target.value = ''; renderMalaCompleta(document.getElementById('sel-view-mala').value); notify("Conferido: " + sn); } }
+    function resetConferencia() { conferidos.clear(); renderMalaCompleta(document.getElementById('sel-view-mala').value); notify("Reset de conferência realizado."); }
+    function renderMalaCompleta(idx) {
+        const container = document.getElementById('resumo-mala-container');
+        if(idx === '') { container.style.display = 'none'; return; }
+        container.style.display = 'block';
+        const tec = db.techs[idx];
+        const totalMala = tec.mala.length;
+        const totalConferidos = tec.mala.filter(i => conferidos.has(i.serial)).length;
+        const s = document.getElementById('mala-status-sinalizador');
+        if(totalConferidos < totalMala) { s.className = "status-badge status-red"; s.innerHTML = `⬤ CONFERÊNCIA PENDENTE (${totalConferidos} de ${totalMala})`; }
+        else { s.className = "status-badge status-green"; s.innerHTML = `⬤ MALA CONFERIDA COM SUCESSO (${totalConferidos})`; }
+        const resumo = {}; tec.mala.forEach(i => { resumo[i.modelo] = (resumo[i.modelo] || 0) + 1; });
+        document.getElementById('panel-resumo-tecnico').innerHTML = Object.keys(resumo).map(m => `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #333"><span>${m}</span><b style="color:var(--claro-red)">${resumo[m]}</b></div>`).join('') + `<div style="margin-top:10px; text-align:right">Total: <b>${tec.mala.length}</b></div>`;
+        document.getElementById('list-mala-items').innerHTML = tec.mala.map((i, subIdx) => `<div class="item-row ${conferidos.has(i.serial) ? 'checked' : ''}"><span><b>${i.serial}</b> - ${i.modelo}</span><button class="btn-del" onclick="db.techs[${idx}].mala.splice(${subIdx},1);renderMalaCompleta(${idx});updateAll();notify('Item removido da mala')">✖</button></div>`).join('');
+    }
+
+    function imprimirComprovante() {
+        notify("Gerando recibo...");
+        const html = `
+            <div style="color:#000; padding:10px; font-family: sans-serif; width: 100%;">
+                <h1 style="text-align:center; font-size: 16px; border-bottom: 2px solid #000; margin-bottom: 10px;">CARGA CONSTRUCABLE</h1>
+                <div style="font-size: 11px; margin-bottom: 10px;"><b>TEC:</b> ${lastCarga.tech} | <b>OP:</b> ${lastCarga.op} | <b>DATA:</b> ${lastCarga.date}</div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 5px;">
+                    ${lastCarga.items.map(i => `
+                        <div style="border: 1px solid #000; padding: 5px;">
+                            <div style="font-size: 13px; font-weight: bold; text-transform: uppercase;">${i.modelo}</div>
+                            <div style="font-size: 14px; font-family: 'Courier New', monospace;">${i.serial}</div>
+                        </div>`).join('')}
+                </div>
+                <p style="margin-top:10px; font-size: 12px;">Total: <b>${lastCarga.items.length} itens</b></p>
+                <div style="margin-top:30px; text-align:center; font-size: 11px;">__________________________<br>Assinatura</div>
+            </div>`;
+        document.getElementById('print-area').innerHTML = html; window.print();
+        document.getElementById('btn-print').style.display = 'none'; document.getElementById('btn-confirm-carga').style.display = 'block';
+    }
+
+    function imprimirConferencia() {
+        notify("Gerando relatório...");
+        const idx = document.getElementById('sel-view-mala').value; const tec = db.techs[idx]; const h = now(); const faltantes = tec.mala.filter(i => !conferidos.has(i.serial));
+        const html = `
+            <div style="color:#000; padding:10px; font-family: sans-serif; width: 100%;">
+                <h1 style="text-align:center; font-size: 15px; border-bottom: 2px solid #000; margin-bottom: 10px;">CONFERÊNCIA DE MALA</h1>
+                <p style="font-size: 11px;"><b>TEC:</b> ${tec.name} | <b>OP:</b> ${currentUser} | <b>DATA:</b> ${h}</p>
+                <hr style="margin: 10px 0;">
+                <h3 style="font-size: 12px;">CONFERIDOS:</h3>
+                ${tec.mala.filter(i => conferidos.has(i.serial)).map(i => `<div style="font-size: 10px;">[OK] ${i.modelo} - ${i.serial}</div>`).join('')}
+                ${faltantes.length > 0 ? `<h3 style="font-size: 12px; margin-top:10px; color: red;">⚠️ PENDENTES:</h3>` + faltantes.map(i => `<div style="border: 1px solid #000; padding: 4px; margin-bottom:2px; font-size: 11px;"><b>[FALTA]</b> ${i.modelo}<br>SN: ${i.serial}</div>`).join('') : '<p>TUDO CONFERIDO!</p>'}
+                <div style="margin-top:30px; text-align:center; font-size: 11px;">__________________________<br>Assinatura</div>
+            </div>`;
+        document.getElementById('print-area').innerHTML = html; window.print();
+    }
+
+    document.getElementById('file-upload').addEventListener('change', function(e) {
+        notify("Processando arquivo...");
+        const reader = new FileReader(); reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'});
+            const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            let ignores = 0; let added = 0;
+            json.forEach(row => { 
+                const sn = (row['Endereçavel Principal'] || row['Número Série'] || '').toString().trim().toUpperCase(); 
+                const mod = (row['Modelo'] || '').toString().trim().toUpperCase(); 
+                if(sn && mod) {
+                    if(isSerialInAnyMala(sn) || db.master.some(i => i.serial === sn)) { ignores++; } 
+                    else { db.master.push({ serial: sn, modelo: mod, status: 'estoque', dataHora: now(), operador: currentUser }); added++; }
+                }
+            });
+            updateAll();
+            notify(`Sucesso: ${added} importados. ${ignores} duplicados ignorados.`);
+        }; reader.readAsArrayBuffer(e.target.files[0]);
+    });
+
+    function addTech() { const n = document.getElementById('tech-name').value.trim().toUpperCase(); const l = document.getElementById('tech-login').value.trim().toUpperCase(); if(n && l) { db.techs.push({ name: n, login: l, mala: [] }); document.getElementById('tech-name').value = ''; document.getElementById('tech-login').value = ''; updateAll(); notify("Técnico cadastrado!"); } }
+    function renderLogs() { document.getElementById('list-logs').innerHTML = db.logs.map(l => `<div class="item-row"><b>${l.tech}</b> <span>${l.items.length} itens (${l.type})</span> <br><small>${l.date} - Por: ${l.op || 'Sist'}</small></div>`).join(''); }
+    function initEmojis() { const c = document.getElementById('bg-canvas'); c.innerHTML = ''; for(let i=0; i<8; i++) { const d = document.createElement('div'); d.className = 'emoji'; d.innerText = '📦'; d.style.left = Math.random()*100 + 'vw'; d.style.animationDuration = (Math.random()*10 + 10) + 's'; c.appendChild(d); } }
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleString(); }, 1000);
+    function executarBaixa() {
+        const sns = document.getElementById('txt-baixa').value.split('\n').map(s => s.trim().toUpperCase()).filter(s => s !== "");
+        let count = 0; sns.forEach(sn => { 
+            const idx = db.master.findIndex(m => m.serial === sn); 
+            if(idx !== -1) { 
+                db.techs.forEach(t => t.mala = t.mala.filter(m => m.serial !== sn)); 
+                db.master.splice(idx, 1); 
+                count++; 
+            } 
+        });
+        db.logs.unshift({ tech: "BAIXA", items: sns.map(s => ({serial: s, modelo: 'BAIXA'})), date: now(), type: 'REMOÇÃO', op: currentUser });
+        document.getElementById('txt-baixa').value = ''; updateAll(); notify(`${count} seriais removidos do sistema.`);
+    }
+</script>
+</body>
+</html>
