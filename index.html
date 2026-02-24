@@ -66,10 +66,11 @@
         .login-box { background: rgba(10,10,10,0.95); padding: 40px; border: 2px solid var(--claro-red); box-shadow: var(--led-color); width: 380px; text-align: center; border-radius: 12px; }
 
         #page-menu { display: none; min-height: 100vh; width: 100%; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
-        .menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; width: 90%; max-width: 900px; }
-        .menu-card { background: rgba(20, 20, 20, 0.9); border: 2px solid #333; padding: 50px 20px; border-radius: 20px; text-align: center; cursor: pointer; transition: 0.4s; }
+        .menu-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; width: 95%; max-width: 1100px; }
+        .menu-card { background: rgba(20, 20, 20, 0.9); border: 2px solid #333; padding: 40px 15px; border-radius: 20px; text-align: center; cursor: pointer; transition: 0.4s; }
         .menu-card:hover { border-color: var(--claro-red); box-shadow: var(--led-color); transform: scale(1.05); }
         .menu-card.blue:hover { border-color: #00c3ff; box-shadow: 0 0 20px rgba(0, 195, 255, 0.8); }
+        .menu-card.yellow:hover { border-color: #ffcc00; box-shadow: 0 0 20px rgba(255, 204, 0, 0.8); }
 
         #page-dash { display: none; flex-direction: column; min-height: 100vh; background: var(--bg-dark); }
         header { padding: 15px 25px; border-bottom: 2px solid var(--claro-red); background: #000; display: flex; justify-content: space-between; align-items: center; }
@@ -95,6 +96,8 @@
         .btn-red:hover { background: var(--claro-red); color: #fff; }
         .btn-blue { border-color: #00c3ff; color: #00c3ff; background: transparent; }
         .btn-blue:hover { background: #00c3ff; color: #000; }
+        .btn-yellow { border-color: #ffcc00; color: #ffcc00; background: transparent; }
+        .btn-yellow:hover { background: #ffcc00; color: #000; }
 
         input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; background: #000; border: 1px solid #333; color: #fff; border-radius: 4px; }
         .list-box { height: 350px; overflow-y: auto; background: rgba(0,0,0,0.6); padding: 10px; border: 1px solid #222; }
@@ -108,6 +111,13 @@
         .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-family: Orbitron; }
         .status-red { background: rgba(238, 46, 36, 0.2); color: #ee2e24; border: 1px solid #ee2e24; box-shadow: var(--led-color); }
         .status-green { background: rgba(0, 255, 100, 0.2); color: #00ff64; border: 1px solid #00ff64; box-shadow: var(--led-green); }
+
+        .date-group { background: #111; padding: 10px; margin-top: 15px; border-left: 3px solid var(--claro-red); color: var(--claro-red); font-weight: bold; }
+
+        /* Estilos Assinatura e Camera */
+        .signature-pad { background: #fff; border: 2px solid var(--claro-red); border-radius: 8px; cursor: crosshair; touch-action: none; width: 100%; height: 150px; }
+        #camera-preview { width: 100%; border-radius: 8px; display: none; margin-bottom: 10px; }
+        #photo-canvas { display: none; }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
@@ -133,6 +143,7 @@
         <input type="text" id="user-input" placeholder="USUÁRIO">
         <input type="password" id="pass-input" placeholder="SENHA">
         <button class="btn-red" onclick="handleLogin()">ENTRAR</button>
+        <p style="font-size: 0.6rem; margin-top: 15px; opacity: 0.5;">Dev by Jessé Moura</p>
     </div>
 </div>
 
@@ -140,16 +151,20 @@
     <h1 style="font-family: Orbitron; margin-bottom: 20px; text-shadow: var(--led-color);">MENU PRINCIPAL</h1>
     <p id="welcome-msg" style="margin-bottom: 30px; color: var(--claro-red); font-weight: bold;"></p>
     <div class="menu-grid">
-        <div class="menu-card" onclick="openEstoque()">
-            <div style="font-size: 5rem;">📦</div>
+        <div class="menu-card" onclick="openEstoque(); showTab(null, 'master')">
+            <div style="font-size: 4rem;">📦</div>
             <span style="font-family: Orbitron;">ESTOQUE</span>
         </div>
-        <div class="menu-card" onclick="notify('Aba em desenvolvimento!', 'warning')">
-            <div style="font-size: 5rem; opacity: 0.5;">📥</div>
-            <span style="font-family: Orbitron; opacity: 0.5;">ENTRADA</span>
+        <div class="menu-card" onclick="openEstoque(); showTab(null, 'entrada-pendente')">
+            <div style="font-size: 4rem;">📥</div>
+            <span style="font-family: Orbitron;">ENTRADA</span>
+        </div>
+        <div class="menu-card yellow" onclick="openEstoque(); showTab(null, 'cabos-tecnico')">
+            <div style="font-size: 4rem;">➰</div>
+            <span style="font-family: Orbitron;">CABOS TÉCNICO</span>
         </div>
         <div class="menu-card blue" onclick="gerarBackupCompleto()">
-            <div style="font-size: 5rem; color: #00c3ff;">💾</div>
+            <div style="font-size: 4rem; color: #00c3ff;">💾</div>
             <span style="font-family: Orbitron; color: #00c3ff;">BACKUP EXCEL</span>
         </div>
     </div>
@@ -166,7 +181,9 @@
     </header>
 
     <nav class="nav-tabs">
-        <button class="tab-btn active" onclick="showTab(event, 'master')">Estoque ADM</button>
+        <button id="btn-tab-master" class="tab-btn active" onclick="showTab(event, 'master')">Estoque ADM</button>
+        <button id="btn-tab-entrada" class="tab-btn" onclick="showTab(event, 'entrada-pendente')">Entrada</button>
+        <button id="btn-tab-cabos" class="tab-btn" onclick="showTab(event, 'cabos-tecnico')">Cabos</button>
         <button class="tab-btn" onclick="showTab(event, 'transfer-tech')">Transferência</button>
         <button class="tab-btn" onclick="showTab(event, 'carga')">Saída p/ Técnico</button>
         <button class="tab-btn" onclick="showTab(event, 'baixa')">Baixa Assinante</button>
@@ -175,6 +192,57 @@
         <button class="tab-btn" onclick="showTab(event, 'logs')">Histórico</button>
         <button class="tab-btn" onclick="showTab(event, 'users')">Usuários</button>
     </nav>
+
+    <div id="cabos-tecnico" class="tab-content">
+        <div class="panel">
+            <h3 style="color: #ffcc00;">➰ ENTREGA DE CABOS E MATERIAIS</h3>
+            <div class="grid" style="grid-template-columns: 1.5fr 1fr;">
+                <div>
+                    <label>Selecione o Técnico:</label>
+                    <select id="sel-tech-cabos"><option value="">Carregando técnicos...</option></select>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 2;">
+                            <label>Tipo de Cabo:</label>
+                            <select id="sel-tipo-cabo">
+                                <option value="CABO BRANCO">CABO BRANCO</option>
+                                <option value="CABO PRETO">CABO PRETO</option>
+                                <option value="CABO DE FIBRA">CABO DE FIBRA</option>
+                                <option value="CABO DE REDE">CABO DE REDE</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Quantidade (M/Un):</label>
+                            <input type="number" id="qtd-cabo" placeholder="Ex: 100" min="1">
+                        </div>
+                    </div>
+                    
+                    <button class="btn-yellow" onclick="addCaboFila()">+ INCLUIR NA LISTA</button>
+
+                    <div style="margin-top: 20px;">
+                        <label>📸 Registro Fotográfico:</label>
+                        <video id="camera-preview" autoplay playsinline></video>
+                        <canvas id="photo-canvas"></canvas>
+                        <button id="btn-camera" class="btn-blue" onclick="toggleCamera()">ABRIR CÂMERA</button>
+                        <button id="btn-take-photo" class="btn-green" style="display:none;" onclick="takePhoto()">CAPTURAR FOTO</button>
+                        <p id="photo-status" style="font-size: 0.7rem; color: #00ff64; display: none;">✅ FOTO REGISTRADA COM DATA/HORA</p>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <label>✍️ Assinatura do Técnico:</label>
+                        <canvas id="signature-pad" class="signature-pad"></canvas>
+                        <button class="btn-del" onclick="clearSignature()" style="font-size: 0.7rem; margin-top: 5px;">LIMPAR ASSINATURA</button>
+                    </div>
+                </div>
+                <div>
+                    <h4>LISTA PARA ENTREGA</h4>
+                    <div id="list-cabos-queue" class="list-box" style="height: 250px;"></div>
+                    <button id="btn-save-cabos" class="btn-green" style="margin-top: 10px;" onclick="salvarCabos()">FINALIZAR E SALVAR</button>
+                    <button id="btn-print-cabos" class="btn-red" style="margin-top: 10px; display:none;" onclick="imprimirReciboCabos()">🖨️ IMPRIMIR COMPROVANTE</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="master" class="tab-content active">
         <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
@@ -214,6 +282,15 @@
                 <tbody id="sum-master"></tbody>
             </table>
             <div id="list-master" class="list-box"></div>
+        </div>
+    </div>
+
+    <div id="entrada-pendente" class="tab-content">
+        <div class="panel">
+            <h3>📥 CONFERÊNCIA DE ENTRADA (PENDENTES)</h3>
+            <p style="margin-bottom:10px; opacity:0.7">Bipe os seriais importados do Excel para que entrem no estoque ADM.</p>
+            <input type="text" id="bip-entrada" placeholder="BIPE O SERIAL PARA CONFIRMAR ENTRADA" onkeypress="handleBipeEntrada(event)" style="border: 2px solid var(--claro-red); font-size: 1.2rem;">
+            <div id="list-pendentes" class="list-box" style="height: 500px; margin-top: 15px;"></div>
         </div>
     </div>
 
@@ -358,14 +435,19 @@
         master: [], 
         techs: [], 
         logs: [], 
-        users: [{name: 'ADMIN', pass: 'admin'}] 
+        users: [{name: 'ADMIN', pass: 'admin'}],
+        pendentes: [],
+        cabosLogs: []
     };
     
     let currentUser = null;
     let queue = [];
+    let cabosQueue = [];
     let transQueue = [];
     let lastCarga = null;
+    let lastCargaCabos = null;
     let conferidos = new Set();
+    let currentPhoto = null;
 
     applyTheme();
 
@@ -385,6 +467,7 @@
             document.getElementById('welcome-msg').innerText = `BEM-VINDO, ${currentUser}`;
             document.getElementById('op-name').innerText = currentUser;
             initEmojis();
+            initSignaturePad();
             notify(`Acesso autorizado: ${currentUser}`);
         } else {
             notify("Usuário ou Senha incorretos!", "error");
@@ -394,36 +477,267 @@
     function handleLogout() { location.reload(); }
     function backToMenu() { document.getElementById('page-dash').style.display = 'none'; document.getElementById('page-menu').style.display = 'flex'; }
     function openEstoque() { document.getElementById('page-menu').style.display = 'none'; document.getElementById('page-dash').style.display = 'flex'; updateAll(); }
+    
     function showTab(e, id) { 
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active')); 
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
         document.getElementById(id).classList.add('active'); 
-        if(e) e.currentTarget.classList.add('active'); 
+        
+        if(e) {
+            e.currentTarget.classList.add('active'); 
+        } else {
+            const btnMap = { 'master': 'btn-tab-master', 'entrada-pendente': 'btn-tab-entrada', 'cabos-tecnico': 'btn-tab-cabos' };
+            if(btnMap[id]) document.getElementById(btnMap[id]).classList.add('active');
+        }
+
+        if(id === 'entrada-pendente') renderPendentes();
+        if(id === 'cabos-tecnico') initSignaturePad();
     }
 
-    // --- FUNÇÃO DE BACKUP GERAL (SOLICITADA) ---
+    // --- FUNCIONALIDADE CABOS (AJUSTADA) ---
+    function initSignaturePad() {
+        const canvas = document.getElementById('signature-pad');
+        if(!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let writing = false;
+
+        const start = (e) => { writing = true; ctx.beginPath(); ctx.moveTo(e.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left, e.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top); };
+        const move = (e) => { if(!writing) return; ctx.lineTo(e.offsetX || e.touches[0].clientX - canvas.getBoundingClientRect().left, e.offsetY || e.touches[0].clientY - canvas.getBoundingClientRect().top); ctx.stroke(); };
+        const end = () => writing = false;
+
+        canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+        canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', move); canvas.addEventListener('touchend', end);
+        ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+    }
+
+    function clearSignature() {
+        const canvas = document.getElementById('signature-pad');
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Camera Logic
+    async function toggleCamera() {
+        const video = document.getElementById('camera-preview');
+        if(video.style.display === 'none' || !video.style.display) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                document.getElementById('btn-take-photo').style.display = 'block';
+                document.getElementById('btn-camera').innerText = "FECHAR CÂMERA";
+            } catch (err) { notify("Erro ao acessar câmera!", "error"); }
+        } else {
+            video.srcObject.getTracks().forEach(t => t.stop());
+            video.style.display = 'none';
+            document.getElementById('btn-take-photo').style.display = 'none';
+            document.getElementById('btn-camera').innerText = "ABRIR CÂMERA";
+        }
+    }
+
+    function takePhoto() {
+        const video = document.getElementById('camera-preview');
+        const canvas = document.getElementById('photo-canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        // Estampar Dados
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "red";
+        ctx.fillText(`CONSTRUCABLE - ${now()}`, 20, 40);
+        
+        currentPhoto = canvas.toDataURL('image/jpeg');
+        document.getElementById('photo-status').style.display = 'block';
+        notify("Foto capturada com sucesso!");
+        toggleCamera();
+    }
+
+    function addCaboFila() {
+        const tipo = document.getElementById('sel-tipo-cabo').value;
+        const qtd = document.getElementById('qtd-cabo').value;
+        if(!qtd || qtd <= 0) return notify("Insira uma quantidade válida!", "error");
+        
+        cabosQueue.push({ tipo, qtd, data: now() });
+        renderCabosQueue();
+        document.getElementById('qtd-cabo').value = '';
+    }
+
+    function renderCabosQueue() {
+        const list = document.getElementById('list-cabos-queue');
+        list.innerHTML = cabosQueue.map((item, idx) => `
+            <div class="item-row">
+                <span><b>${item.tipo}</b> - ${item.qtd}m</span>
+                <button class="btn-del" onclick="cabosQueue.splice(${idx}, 1); renderCabosQueue();">✖</button>
+            </div>
+        `).join('');
+    }
+
+    function salvarCabos() {
+        const tIdx = document.getElementById('sel-tech-cabos').value;
+        if(tIdx === '' || cabosQueue.length === 0) return notify("Selecione o técnico e adicione itens!", "error");
+        
+        const sigCanvas = document.getElementById('signature-pad');
+        const signatureData = sigCanvas.toDataURL();
+        
+        const tec = db.techs[tIdx];
+        const h = now();
+        
+        if(!db.cabosLogs) db.cabosLogs = [];
+
+        const logEntry = {
+            techName: tec.name,
+            techLogin: tec.login,
+            items: [...cabosQueue],
+            date: h,
+            op: currentUser,
+            photo: currentPhoto,
+            signature: signatureData
+        };
+
+        db.cabosLogs.unshift(logEntry);
+        db.logs.unshift({ tech: tec.name, items: cabosQueue.map(c => ({ serial: 'CABO', modelo: c.tipo })), date: h, type: 'CABOS', op: currentUser });
+        
+        lastCargaCabos = logEntry;
+        cabosQueue = [];
+        currentPhoto = null;
+        document.getElementById('photo-status').style.display = 'none';
+        clearSignature();
+        renderCabosQueue();
+        save();
+        
+        notify("Carga de cabos salva!");
+        document.getElementById('btn-save-cabos').style.display = 'none';
+        document.getElementById('btn-print-cabos').style.display = 'block';
+    }
+
+    function imprimirReciboCabos() {
+        const html = `
+            <div style="color:#000; padding:20px; font-family: sans-serif; width: 100%;">
+                <h1 style="text-align:center; font-size: 20px; border-bottom: 3px solid #000; padding-bottom: 10px;">RECIBO DE MATERIAIS / CABOS</h1>
+                <div style="display: flex; justify-content: space-between;">
+                    <div style="font-size: 13px;">
+                        <p><b>TÉCNICO:</b> ${lastCargaCabos.techName}</p>
+                        <p><b>MATRÍCULA:</b> ${lastCargaCabos.techLogin}</p>
+                        <p><b>DATA/HORA:</b> ${lastCargaCabos.date}</p>
+                        <p><b>OPERADOR:</b> ${lastCargaCabos.op}</p>
+                    </div>
+                    ${lastCargaCabos.photo ? `<img src="${lastCargaCabos.photo}" style="width:150px; border:1px solid #000;">` : ''}
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-top:20px;">
+                    <thead><tr style="border-bottom: 2px solid #000;"><th style="text-align:left; padding:8px;">DESCRIÇÃO DO MATERIAL</th><th style="text-align:right; padding:8px;">QUANTIDADE</th></tr></thead>
+                    <tbody>
+                        ${lastCargaCabos.items.map(i => `<tr style="border-bottom:1px solid #ddd;"><td style="padding:8px;">${i.tipo}</td><td style="padding:8px; text-align:right;">${i.qtd} metros</td></tr>`).join('')}
+                    </tbody>
+                </table>
+                <div style="margin-top: 30px;">
+                    <p style="font-size: 12px;"><b>ASSINATURA DO TÉCNICO:</b></p>
+                    <img src="${lastCargaCabos.signature}" style="width:300px; border-bottom: 1px solid #000;">
+                </div>
+                <div style="margin-top: 20px; text-align:center; font-size: 10px; color: #666;">
+                    Documento gerado digitalmente pelo Sistema Construcable Logistics Pro.
+                </div>
+            </div>`;
+        document.getElementById('print-area').innerHTML = html;
+        window.print();
+        document.getElementById('btn-print-cabos').style.display = 'none';
+        document.getElementById('btn-save-cabos').style.display = 'block';
+    }
+
+    // --- FUNÇÕES DE ENTRADA PENDENTE ---
+    function renderPendentes() {
+        const list = document.getElementById('list-pendentes');
+        if(!db.pendentes) db.pendentes = [];
+        
+        if(db.pendentes.length === 0) {
+            list.innerHTML = "<p style='text-align:center; padding:20px; opacity:0.5;'>Nenhum item pendente de entrada.</p>";
+            return;
+        }
+
+        const grupos = {};
+        db.pendentes.forEach(p => {
+            const data = p.dataHora.split(' ')[0];
+            if(!grupos[data]) grupos[data] = [];
+            grupos[data].push(p);
+        });
+
+        let html = "";
+        Object.keys(grupos).reverse().forEach(data => {
+            html += `<div class="date-group">DATA DE IMPORTAÇÃO: ${data} (${grupos[data].length} itens)</div>`;
+            grupos[data].forEach(item => {
+                html += `
+                <div class="item-row">
+                    <span><b>${item.serial}</b> - ${item.modelo}</span>
+                    <button class="btn-del" onclick="removerPendente('${item.serial}')">✖</button>
+                </div>`;
+            });
+        });
+        list.innerHTML = html;
+    }
+
+    function handleBipeEntrada(e) {
+        if(e.key === 'Enter') {
+            const sn = e.target.value.trim().toUpperCase();
+            if(!sn) return;
+            const idx = db.pendentes.findIndex(p => p.serial === sn);
+            if(idx !== -1) {
+                const item = db.pendentes.splice(idx, 1)[0];
+                item.status = 'estoque';
+                item.dataHora = now();
+                item.operador = currentUser;
+                db.master.push(item);
+                save();
+                renderPendentes();
+                notify(`Item ${sn} entrou no estoque ADM!`);
+            } else {
+                notify("Serial não encontrado na lista de pendentes!", "error");
+            }
+            e.target.value = '';
+        }
+    }
+
+    function removerPendente(sn) {
+        if(confirm("Remover este item da lista de pendentes? Ele não entrará no estoque.")) {
+            db.pendentes = db.pendentes.filter(p => p.serial !== sn);
+            save();
+            renderPendentes();
+        }
+    }
+
     function gerarBackupCompleto() {
         const wb = XLSX.utils.book_new();
         
-        // 1. Estoque ADM
         const dataAdm = db.master.filter(i => i.status === 'estoque').map(i => ({ "Serial": i.serial, "Modelo": i.modelo, "Data Entrada": i.dataHora, "Operador": i.operador }));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataAdm), "ESTOQUE_ADM");
-
-        // 2. Estoque Técnicos
+        
         const dataTechs = [];
         db.techs.forEach(t => t.mala.forEach(m => dataTechs.push({ "Técnico": t.name, "Login": t.login, "Serial": m.serial, "Modelo": m.modelo, "Carga": m.dataHora, "Operador": m.operador })));
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTechs), "ESTOQUE_TECNICOS");
 
-        // 3. Histórico de Movimentações
+        const dataCabos = [];
+        (db.cabosLogs || []).forEach(log => {
+            log.items.forEach(item => {
+                dataCabos.push({
+                    "Técnico": log.techName,
+                    "Login": log.techLogin,
+                    "Data": log.date.split(',')[0],
+                    "Hora": log.date.split(',')[1],
+                    "Modelo do Cabo": item.tipo,
+                    "Metragem/Qtd": item.qtd,
+                    "Operador": log.op,
+                    "Assinatura (Base64)": log.signature.substring(0, 50) + "..."
+                });
+            });
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataCabos), "CABOS_TECNICOS");
+
         const dataLogs = [];
         db.logs.forEach(l => l.items.forEach(i => dataLogs.push({ "Data": l.date, "Tipo": l.type, "Resp": l.tech, "Serial": i.serial, "Modelo": i.modelo, "Operador": l.op || 'Sist' })));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataLogs), "HISTORICO_MOVIMENTACAO");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataLogs), "HISTORICO_GERAL");
 
         XLSX.writeFile(wb, `BACKUP_GERAL_CONSTRUCABLE_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
         notify("Backup Geral gerado com sucesso!");
     }
 
-    // GESTÃO DE USUÁRIOS
     function addUser() {
         const n = document.getElementById('new-user-name').value.trim().toUpperCase();
         const p = document.getElementById('new-user-pass').value.trim();
@@ -444,17 +758,8 @@
         const sn = document.getElementById('man-sn').value.trim().toUpperCase();
         const mod = document.getElementById('man-mod').value.trim().toUpperCase();
         if(!sn || !mod) return;
-        
-        if(isSerialInAnyMala(sn)) {
-            notify("Erro: Serial em posse de técnico!", "error");
-            return;
-        }
-        
-        if(db.master.some(i => i.serial === sn)) {
-            notify("Erro: Serial já existe no ADM!", "error");
-            return;
-        }
-
+        if(isSerialInAnyMala(sn)) { notify("Erro: Serial em posse de técnico!", "error"); return; }
+        if(db.master.some(i => i.serial === sn)) { notify("Erro: Serial já existe no ADM!", "error"); return; }
         db.master.push({ serial: sn, modelo: mod, status: 'estoque', dataHora: now(), operador: currentUser });
         updateAll();
         document.getElementById('man-sn').value = '';
@@ -476,7 +781,6 @@
         if(tIdx === '' || queue.length === 0) return notify("Selecione técnico e valide itens!", "error");
         const tec = db.techs[tIdx]; const h = now();
         lastCarga = { tech: tec.name, login: tec.login, items: [...queue], date: h, op: currentUser };
-        
         queue.forEach(q => {
             const m = db.master.find(i => i.serial === q.serial);
             m.status = 'tecnico'; 
@@ -484,7 +788,6 @@
             m.operador = currentUser;
             tec.mala.push({...m});
         });
-
         db.logs.unshift({ ...lastCarga, type: 'SAÍDA' });
         queue = []; renderQueue(); updateAll();
         document.getElementById('btn-confirm-carga').style.display = 'none'; document.getElementById('btn-print').style.display = 'block';
@@ -495,15 +798,12 @@
         if(e.key === 'Enter') {
             const sn = e.target.value.toUpperCase();
             let r = "❌ NÃO ENCONTRADO NO SISTEMA";
-            
             const noAdm = db.master.find(i => i.serial === sn && i.status === 'estoque');
             if(noAdm) r = `✅ EM ADM | Desde: ${noAdm.dataHora} | Por: ${noAdm.operador || 'Sistema'}`;
-            
             db.techs.forEach(t => {
                 const noTec = t.mala.find(m => m.serial === sn);
                 if(noTec) r = `👤 COM TÉCNICO: ${t.name} | Carga: ${noTec.dataHora} | Por: ${noTec.operador || 'Sistema'}`;
             });
-            
             document.getElementById('search-result').innerText = r;
             notify("Busca concluída.");
         }
@@ -512,7 +812,7 @@
     function updateAll() {
         save(); renderStats(); renderMaster(); renderLogs();
         const opts = '<option value="">Selecione...</option>' + db.techs.map((t,i) => `<option value="${i}">${t.name}</option>`).join('');
-        ['sel-tech-carga', 'sel-view-mala', 'sel-tech-origem'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerHTML = opts; });
+        ['sel-tech-carga', 'sel-view-mala', 'sel-tech-origem', 'sel-tech-cabos'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerHTML = opts; });
         document.getElementById('sel-tech-destino').innerHTML = opts + '<option value="ADM">🏠 ESTOQUE ADM</option>';
         document.getElementById('list-techs').innerHTML = db.techs.map((t, i) => `<div class="item-row"><span><b>${t.name}</b> (${t.login})</span><div style="display:flex; gap:10px; align-items:center;"><span style="color:var(--claro-red); font-weight:bold">${t.mala.length} itens</span><button class="btn-del" onclick="if(confirm('Excluir técnico?')){db.techs.splice(${i},1);updateAll();notify('Técnico excluído');}">✖</button></div></div>`).join('');
         document.getElementById('list-users').innerHTML = db.users.map((u, i) => `<div class="item-row"><span>${u.name}</span>${u.name !== 'ADMIN' ? `<button class="btn-del" onclick="db.users.splice(${i},1);updateAll();notify('Operador removido');">✖</button>` : ''}</div>`).join('');
@@ -583,65 +883,61 @@
         else { s.className = "status-badge status-green"; s.innerHTML = `⬤ MALA CONFERIDA COM SUCESSO (${totalConferidos})`; }
         const resumo = {}; tec.mala.forEach(i => { resumo[i.modelo] = (resumo[i.modelo] || 0) + 1; });
         document.getElementById('panel-resumo-tecnico').innerHTML = Object.keys(resumo).map(m => `<div style="display:flex; justify-content:space-between; padding:5px; border-bottom:1px solid #333"><span>${m}</span><b style="color:var(--claro-red)">${resumo[m]}</b></div>`).join('') + `<div style="margin-top:10px; text-align:right">Total: <b>${tec.mala.length}</b></div>`;
-        document.getElementById('list-mala-items').innerHTML = tec.mala.map((i, subIdx) => `<div class="item-row ${conferidos.has(i.serial) ? 'checked' : ''}"><span><b>${i.serial}</b> - ${i.modelo}</span><button class="btn-del" onclick="db.techs[${idx}].mala.splice(${subIdx},1);renderMalaCompleta(${idx});updateAll();notify('Item removido da mala')">✖</button></div>`).join('');
+        document.getElementById('list-mala-items').innerHTML = tec.mala.map((i, subIdx) => `
+            <div class="item-row ${conferidos.has(i.serial) ? 'checked' : ''}">
+                <span>
+                    <b>${i.serial}</b> - ${i.modelo}
+                    <br><small style="opacity:0.8">Saída: ${i.dataHora || 'N/A'} | Por: ${i.operador || 'Sist'}</small>
+                </span>
+                <button class="btn-del" onclick="db.techs[${idx}].mala.splice(${subIdx},1);renderMalaCompleta(${idx});updateAll();notify('Item removido da mala')">✖</button>
+            </div>`).join('');
     }
 
     function imprimirComprovante() {
-        notify("Gerando recibo...");
         const html = `
-            <div style="color:#000; padding:10px; font-family: sans-serif; width: 100%;">
-                <h1 style="text-align:center; font-size: 16px; border-bottom: 2px solid #000; margin-bottom: 10px;">CARGA CONSTRUCABLE</h1>
-                <div style="font-size: 11px; margin-bottom: 10px;"><b>TEC:</b> ${lastCarga.tech} | <b>OP:</b> ${lastCarga.op} | <b>DATA:</b> ${lastCarga.date}</div>
-                <div style="display: grid; grid-template-columns: 1fr; gap: 5px;">
-                    ${lastCarga.items.map(i => `
-                        <div style="border: 1px solid #000; padding: 5px;">
-                            <div style="font-size: 13px; font-weight: bold; text-transform: uppercase;">${i.modelo}</div>
-                            <div style="font-size: 14px; font-family: 'Courier New', monospace;">${i.serial}</div>
-                        </div>`).join('')}
+            <div style="color:#000; padding:20px; font-family: sans-serif; width: 100%;">
+                <h1 style="text-align:center; font-size: 20px; border-bottom: 3px solid #000; padding-bottom: 10px;">RECIBO DE CARGA DE EQUIPAMENTOS</h1>
+                <div style="background: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                    <p><b>TÉCNICO:</b> ${lastCarga.tech}</p>
+                    <p><b>MATRÍCULA:</b> ${lastCarga.login}</p>
+                    <p><b>DATA/HORA:</b> ${lastCarga.date}</p>
                 </div>
-                <p style="margin-top:10px; font-size: 12px;">Total: <b>${lastCarga.items.length} itens</b></p>
-                <div style="margin-top:30px; text-align:center; font-size: 11px;">__________________________<br>Assinatura</div>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead><tr style="border-bottom: 2px solid #000;"><th style="text-align:left; padding:8px;">MODELO</th><th style="text-align:left; padding:8px;">SERIAL (SN)</th></tr></thead>
+                    <tbody>${lastCarga.items.map(i => `<tr style="border-bottom: 1px solid #ddd;"><td style="padding:8px;">${i.modelo}</td><td style="padding:8px;">${i.serial}</td></tr>`).join('')}</tbody>
+                </table>
+                <div style="margin-top: 60px; display: flex; justify-content: space-around; text-align: center;">
+                    <div style="width: 250px; border-top: 1px solid #000;">Assinatura Técnico</div>
+                    <div style="width: 250px; border-top: 1px solid #000;">Logística</div>
+                </div>
             </div>`;
         document.getElementById('print-area').innerHTML = html; window.print();
         document.getElementById('btn-print').style.display = 'none'; document.getElementById('btn-confirm-carga').style.display = 'block';
     }
 
     function imprimirConferencia() {
-        notify("Gerando relatório...");
         const idx = document.getElementById('sel-view-mala').value; const tec = db.techs[idx]; const h = now(); const faltantes = tec.mala.filter(i => !conferidos.has(i.serial));
-        const html = `
-            <div style="color:#000; padding:10px; font-family: sans-serif; width: 100%;">
-                <h1 style="text-align:center; font-size: 15px; border-bottom: 2px solid #000; margin-bottom: 10px;">CONFERÊNCIA DE MALA</h1>
-                <p style="font-size: 11px;"><b>TEC:</b> ${tec.name} | <b>OP:</b> ${currentUser} | <b>DATA:</b> ${h}</p>
-                <hr style="margin: 10px 0;">
-                <h3 style="font-size: 12px;">CONFERIDOS:</h3>
-                ${tec.mala.filter(i => conferidos.has(i.serial)).map(i => `<div style="font-size: 10px;">[OK] ${i.modelo} - ${i.serial}</div>`).join('')}
-                ${faltantes.length > 0 ? `<h3 style="font-size: 12px; margin-top:10px; color: red;">⚠️ PENDENTES:</h3>` + faltantes.map(i => `<div style="border: 1px solid #000; padding: 4px; margin-bottom:2px; font-size: 11px;"><b>[FALTA]</b> ${i.modelo}<br>SN: ${i.serial}</div>`).join('') : '<p>TUDO CONFERIDO!</p>'}
-                <div style="margin-top:30px; text-align:center; font-size: 11px;">__________________________<br>Assinatura</div>
-            </div>`;
+        const html = `<div style="color:#000; padding:20px; font-family: sans-serif;"><h1>RELATÓRIO CONFERÊNCIA: ${tec.name}</h1><p>Data: ${h}</p>...</div>`;
         document.getElementById('print-area').innerHTML = html; window.print();
     }
 
     document.getElementById('file-upload').addEventListener('change', function(e) {
-        notify("Processando arquivo...");
         const reader = new FileReader(); reader.onload = function(e) {
             const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array'});
             const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-            let ignores = 0; let added = 0;
+            let added = 0; if(!db.pendentes) db.pendentes = [];
             json.forEach(row => { 
                 const sn = (row['Endereçavel Principal'] || row['Número Série'] || '').toString().trim().toUpperCase(); 
                 const mod = (row['Modelo'] || '').toString().trim().toUpperCase(); 
-                if(sn && mod) {
-                    if(isSerialInAnyMala(sn) || db.master.some(i => i.serial === sn)) { ignores++; } 
-                    else { db.master.push({ serial: sn, modelo: mod, status: 'estoque', dataHora: now(), operador: currentUser }); added++; }
+                if(sn && mod && !db.master.some(i => i.serial === sn)) {
+                    db.pendentes.push({ serial: sn, modelo: mod, status: 'pendente', dataHora: now(), operador: currentUser }); added++;
                 }
             });
-            updateAll();
-            notify(`Sucesso: ${added} importados. ${ignores} duplicados ignorados.`);
+            save(); updateAll(); notify(`${added} na lista de espera.`);
         }; reader.readAsArrayBuffer(e.target.files[0]);
     });
 
-    function addTech() { const n = document.getElementById('tech-name').value.trim().toUpperCase(); const l = document.getElementById('tech-login').value.trim().toUpperCase(); if(n && l) { db.techs.push({ name: n, login: l, mala: [] }); document.getElementById('tech-name').value = ''; document.getElementById('tech-login').value = ''; updateAll(); notify("Técnico cadastrado!"); } }
+    function addTech() { const n = document.getElementById('tech-name').value.trim().toUpperCase(); const l = document.getElementById('tech-login').value.trim().toUpperCase(); if(n && l) { db.techs.push({ name: n, login: l, mala: [], materiais: [] }); document.getElementById('tech-name').value = ''; document.getElementById('tech-login').value = ''; updateAll(); notify("Técnico cadastrado!"); } }
     function renderLogs() { document.getElementById('list-logs').innerHTML = db.logs.map(l => `<div class="item-row"><b>${l.tech}</b> <span>${l.items.length} itens (${l.type})</span> <br><small>${l.date} - Por: ${l.op || 'Sist'}</small></div>`).join(''); }
     function initEmojis() { const c = document.getElementById('bg-canvas'); c.innerHTML = ''; for(let i=0; i<8; i++) { const d = document.createElement('div'); d.className = 'emoji'; d.innerText = '📦'; d.style.left = Math.random()*100 + 'vw'; d.style.animationDuration = (Math.random()*10 + 10) + 's'; c.appendChild(d); } }
     setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleString(); }, 1000);
@@ -656,9 +952,8 @@
             } 
         });
         db.logs.unshift({ tech: "BAIXA", items: sns.map(s => ({serial: s, modelo: 'BAIXA'})), date: now(), type: 'REMOÇÃO', op: currentUser });
-        document.getElementById('txt-baixa').value = ''; updateAll(); notify(`${count} seriais removidos do sistema.`);
+        document.getElementById('txt-baixa').value = ''; updateAll(); notify(`${count} seriais removidos.`);
     }
 </script>
 </body>
-
 </html>
