@@ -35,17 +35,37 @@
         }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
-        .color-picker-btn {
+        /* AJUSTE PLAYER E TEMA */
+        .system-controls {
             position: fixed;
             bottom: 20px;
             right: 20px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .music-player {
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--claro-red);
+            border-radius: 8px;
+            overflow: hidden;
+            height: 0;
+            width: 200px;
+            transition: 0.3s;
+            opacity: 0;
+        }
+        .music-player.active { height: 120px; opacity: 1; margin-bottom: 5px; }
+
+        .color-picker-btn, .music-toggle-btn {
             width: 50px;
             height: 50px;
             border-radius: 50%;
             background: var(--claro-red);
             border: none;
             cursor: pointer;
-            z-index: 3000;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -129,7 +149,16 @@
 <body>
 
 <div id="notification-container"></div>
-<button class="color-picker-btn" onclick="toggleTheme()" title="Mudar Cor do Sistema">🎨</button>
+
+<div class="system-controls">
+    <div id="radio-container" class="music-player">
+        <iframe width="100%" height="120" src="https://www.youtube.com/embed/jfKfPfyJRdk?si=music" title="Lofi Radio" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
+    </div>
+    <div style="display:flex; gap:10px;">
+        <button class="music-toggle-btn" onclick="toggleMusic()" title="Rádio Ambiente">🎵</button>
+        <button class="color-picker-btn" onclick="toggleTheme()" title="Mudar Cor do Sistema">🎨</button>
+    </div>
+</div>
 
 <div id="bg-canvas"></div>
 
@@ -415,6 +444,29 @@
 <div id="print-area"></div>
 
 <script>
+    // SISTEMA DE SONS
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(type) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        if(type === 'success') {
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Agudo
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        } else {
+            osc.frequency.setValueAtTime(220, audioCtx.currentTime); // Grave
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        }
+    }
+
+    function toggleMusic() {
+        const player = document.getElementById('radio-container');
+        player.classList.toggle('active');
+    }
+
     // SISTEMA DE TEMAS
     const themes = [
         { name: 'Red', main: '#ee2e24', led: '0 0 20px rgba(238, 46, 36, 0.9)' },
@@ -872,8 +924,13 @@
             if(idx !== -1) {
                 const item = db.pendentes.splice(idx, 1)[0];
                 item.status = 'estoque'; item.dataHora = now(); item.operador = currentUser;
-                db.master.push(item); save(); renderPendentes(); notify(`Item ${sn} no estoque!`);
-            } else { notify("Não encontrado nos pendentes!", "error"); }
+                db.master.push(item); save(); renderPendentes(); 
+                notify(`Item ${sn} no estoque!`);
+                playBeep('success');
+            } else { 
+                notify("Não encontrado nos pendentes!", "error"); 
+                playBeep('error');
+            }
             e.target.value = '';
         }
     }
@@ -892,6 +949,7 @@
         });
         document.getElementById('lote-entrada-txt').value = ''; updateAll();
         notify(`${count} itens adicionados ao ADM.`);
+        if(count > 0) playBeep('success'); else playBeep('error');
     }
 
     function limparPendentesGeral() { if(confirm("Limpar lista de pendentes?")) { db.pendentes = []; save(); renderPendentes(); } }
@@ -909,10 +967,10 @@
         const sn = document.getElementById('man-sn').value.trim().toUpperCase();
         const mod = document.getElementById('man-mod').value.trim().toUpperCase();
         if(!sn || !mod) return;
-        if(isSerialInAnyMala(sn)) { notify("Serial com técnico!", "error"); return; }
-        if(db.master.some(i => i.serial === sn)) { notify("Serial já existe!", "error"); return; }
+        if(isSerialInAnyMala(sn)) { notify("Serial com técnico!", "error"); playBeep('error'); return; }
+        if(db.master.some(i => i.serial === sn)) { notify("Serial já existe!", "error"); playBeep('error'); return; }
         db.master.push({ serial: sn, modelo: mod, status: 'estoque', dataHora: now(), operador: currentUser });
-        updateAll(); notify("Item adicionado!");
+        updateAll(); notify("Item adicionado!"); playBeep('success');
     }
 
     function clearOnlyADM() { if(confirm("Limpar estoque ADM?")) { db.master = db.master.filter(i => i.status !== 'estoque'); updateAll(); notify("ADM limpo!"); } }
@@ -932,6 +990,7 @@
         db.logs.unshift({ ...lastCarga, type: 'SAÍDA' });
         queue = []; renderQueue(); updateAll();
         document.getElementById('btn-confirm-carga').style.display = 'none'; document.getElementById('btn-print').style.display = 'block';
+        playBeep('success');
     }
 
     function consultar(e) {
@@ -1010,8 +1069,14 @@
         if(e.key === 'Enter') {
             const sn = e.target.value.trim().toUpperCase(); if(!sn) return;
             const item = db.master.find(i => i.serial === sn && i.status === 'estoque');
-            if(item) { if(!queue.some(q => q.serial === sn)) { queue.push({...item}); renderQueue(); } }
-            else notify("Não encontrado no ADM!", "error");
+            if(item) { 
+                if(!queue.some(q => q.serial === sn)) { 
+                    queue.push({...item}); 
+                    renderQueue(); 
+                    playBeep('success');
+                } 
+            }
+            else { notify("Não encontrado no ADM!", "error"); playBeep('error'); }
             e.target.value = '';
         }
     }
@@ -1026,7 +1091,24 @@
             <div class="item-row"><div style="display:flex; flex-direction:column;"><span><b>${i.modelo}</b> | ${i.serial}</span><small style="font-size:0.6rem; opacity:0.6;">${i.dataHora}</small></div><button class="btn-del" onclick="queue=queue.filter(q=>q.serial!=='${i.serial}');renderQueue()">✖</button></div>`).join(''); 
     }
 
-    function marcarConferido(e) { if(e.key === 'Enter') { const sn = e.target.value.trim().toUpperCase(); conferidos.add(sn); e.target.value = ''; renderMalaCompleta(document.getElementById('sel-view-mala').value); } }
+    function marcarConferido(e) { 
+        if(e.key === 'Enter') { 
+            const sn = e.target.value.trim().toUpperCase(); 
+            const idx = document.getElementById('sel-view-mala').value;
+            const itemExisteNaMala = db.techs[idx].mala.some(m => m.serial === sn);
+            
+            if(itemExisteNaMala) {
+                conferidos.add(sn); 
+                playBeep('success');
+            } else {
+                notify("Serial não pertence a este técnico!", "error");
+                playBeep('error');
+            }
+            e.target.value = ''; 
+            renderMalaCompleta(idx); 
+        } 
+    }
+    
     function resetConferencia() { conferidos.clear(); renderMalaCompleta(document.getElementById('sel-view-mala').value); }
     
     function renderMalaCompleta(idx) {
@@ -1042,7 +1124,40 @@
         const mFamilies = {};
         tec.mala.forEach(m => { const f = getFamily(m.modelo); mFamilies[f] = (mFamilies[f] || 0) + 1; });
         document.getElementById('sum-mala-tecnico').innerHTML = Object.keys(mFamilies).sort().map(f => `<tr><td>${f}</td><td>${mFamilies[f]}</td></tr>`).join('');
-        document.getElementById('list-mala-items').innerHTML = tec.mala.map((i, subIdx) => `<div class="item-row ${conferidos.has(i.serial) ? 'checked' : ''}"><div style="display:flex; flex-direction:column;"><span><b>${i.serial}</b> - ${i.modelo}</span><small style="opacity:0.6; font-size:0.7rem;">🕒 ${i.dataHora}</small></div><button class="btn-del" onclick="db.techs[${idx}].mala.splice(${subIdx},1);renderMalaCompleta(${idx});updateAll();">✖</button></div>`).join('');
+        document.getElementById('list-mala-items').innerHTML = tec.mala.map((i, subIdx) => `
+            <div class="item-row ${conferidos.has(i.serial) ? 'checked' : ''}">
+                <div style="display:flex; flex-direction:column;">
+                    <span><b>${i.serial}</b> - ${i.modelo}</span>
+                    <small style="opacity:0.6; font-size:0.7rem;">🕒 ${i.dataHora}</small>
+                </div>
+                <button class="btn-del" onclick="removerItemMalaManual(${idx}, ${subIdx})">✖</button>
+            </div>`).join('');
+    }
+
+    // NOVA FUNÇÃO PARA REGISTRAR LOG AO REMOVER MANUALMENTE DA MALA
+    function removerItemMalaManual(techIdx, itemIdx) {
+        const tec = db.techs[techIdx];
+        const item = tec.mala[itemIdx];
+        if(confirm(`Deseja remover o serial ${item.serial} da mala de ${tec.name}?`)) {
+            // Registra no histórico
+            db.logs.unshift({
+                tech: tec.name,
+                items: [{serial: item.serial, modelo: item.modelo}],
+                date: now(),
+                type: 'REMOÇÃO MANUAL MALA',
+                op: currentUser
+            });
+            // Remove do técnico
+            tec.mala.splice(itemIdx, 1);
+            // Volta status no master se ele existir lá
+            const mIdx = db.master.findIndex(m => m.serial === item.serial);
+            if(mIdx !== -1) {
+                db.master[mIdx].status = 'estoque';
+            }
+            updateAll();
+            renderMalaCompleta(techIdx);
+            notify("Item removido e log gerado.");
+        }
     }
 
     function renderMalaOrigem(idx) {
@@ -1061,8 +1176,13 @@
             const oIdx = document.getElementById('sel-tech-origem').value;
             if(oIdx === '') return notify("Selecione a origem!", "error");
             const item = db.techs[oIdx].mala.find(m => m.serial === sn);
-            if(item) { if(!transQueue.some(q => q.serial === sn)) transQueue.push({...item}); }
-            else notify("Serial não está nesta mala!", "error");
+            if(item) { 
+                if(!transQueue.some(q => q.serial === sn)) {
+                    transQueue.push({...item}); 
+                    playBeep('success');
+                }
+            }
+            else { notify("Serial não está nesta mala!", "error"); playBeep('error'); }
             e.target.value = ''; renderTransQueue();
         }
     }
@@ -1098,6 +1218,7 @@
             }
         });
         notify("Transferência concluída!"); transQueue = []; renderTransQueue(); renderMalaOrigem(oIdx); updateAll();
+        playBeep('success');
     }
 
     document.getElementById('file-upload').addEventListener('change', function(e) {
@@ -1114,7 +1235,7 @@
         }; reader.readAsArrayBuffer(e.target.files[0]);
     });
 
-    function renderLogs() { document.getElementById('list-logs').innerHTML = db.logs.map(l => `<div class="item-row"><b>${l.tech}</b> <span>${l.items ? l.items.length : 0} itens</span> <small>${l.date}</small></div>`).join(''); }
+    function renderLogs() { document.getElementById('list-logs').innerHTML = db.logs.map(l => `<div class="item-row"><b>${l.tech || 'SISTEMA'}</b> <span>${l.type}: ${l.items ? l.items.length : 0} itens</span> <small>${l.date}</small></div>`).join(''); }
     function initEmojis() { const c = document.getElementById('bg-canvas'); for(let i=0; i<8; i++) { const d = document.createElement('div'); d.className = 'emoji'; d.innerText = '📦'; d.style.left = Math.random()*100 + 'vw'; d.style.animationDuration = (Math.random()*10 + 10) + 's'; c.appendChild(d); } }
     setInterval(() => { const clock = document.getElementById('clock'); if(clock) clock.innerText = new Date().toLocaleString(); }, 1000);
     
@@ -1123,10 +1244,22 @@
         let removidos = 0; if(!db.baixas) db.baixas = [];
         sns.forEach(sn => { 
             const mIdx = db.master.findIndex(m => m.serial === sn);
-            if(mIdx !== -1) { db.baixas.push({ serial: sn, modelo: db.master[mIdx].modelo, data: now(), op: currentUser }); db.master.splice(mIdx, 1); removidos++; }
-            db.techs.forEach(t => { const subIdx = t.mala.findIndex(m => m.serial === sn); if(subIdx !== -1) { db.baixas.push({ serial: sn, modelo: t.mala[subIdx].modelo, data: now(), op: currentUser }); t.mala.splice(subIdx, 1); removidos++; } });
+            if(mIdx !== -1) { 
+                db.baixas.push({ serial: sn, modelo: db.master[mIdx].modelo, data: now(), op: currentUser }); 
+                db.logs.unshift({ tech: 'BAIXA SISTEMA', items: [{serial: sn}], date: now(), type: 'BAIXA DEFINITIVA', op: currentUser });
+                db.master.splice(mIdx, 1); removidos++; 
+            }
+            db.techs.forEach(t => { 
+                const subIdx = t.mala.findIndex(m => m.serial === sn); 
+                if(subIdx !== -1) { 
+                    db.baixas.push({ serial: sn, modelo: t.mala[subIdx].modelo, data: now(), op: currentUser }); 
+                    db.logs.unshift({ tech: t.name, items: [{serial: sn}], date: now(), type: 'BAIXA DEFINITIVA', op: currentUser });
+                    t.mala.splice(subIdx, 1); removidos++; 
+                } 
+            });
         });
         document.getElementById('txt-baixa').value = ''; updateAll(); notify(`${removidos} registros baixados.`);
+        if(removidos > 0) playBeep('success'); else playBeep('error');
     }
 
     function addTech() { 
