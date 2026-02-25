@@ -187,7 +187,7 @@
         <button class="tab-btn" onclick="showTab(event, 'mala')">Mala / Conferência</button>
         <button class="tab-btn" onclick="showTab(event, 'busca')">Busca Serial</button>
         <button class="tab-btn" onclick="showTab(event, 'logs')">Histórico</button>
-        <button class="tab-btn" onclick="showTab(event, 'users')">Usuários</button>
+        <button class="tab-btn" onclick="showTab(event, 'users')">Gestão</button>
     </nav>
 
     <div id="cabos-tecnico" class="tab-content">
@@ -255,13 +255,12 @@
                 <button class="btn-red" style="margin-top:15px;" onclick="clearOnlyADM()">⚠️ LIMPAR APENAS ESTOQUE ADM</button>
             </div>
             <div class="panel">
-                <h3>👥 GESTÃO DE TÉCNICOS / EXPORTAR</h3>
+                <h3>👥 CADASTRAR NOVO TÉCNICO</h3>
                 <div style="display: flex; gap:5px;">
                    <input type="text" id="tech-name" placeholder="Nome Completo">
                    <input type="text" id="tech-login" placeholder="Login/Matrícula">
                 </div>
                 <button class="btn-green" onclick="addTech()">CADASTRAR TÉCNICO</button>
-                <div id="list-techs" class="list-box" style="height:120px; margin-top:10px"></div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-top:10px">
                     <button class="btn-blue" style="font-size: 0.7rem;" onclick="exportExcelADM()">📊 EXCEL ADM</button>
                     <button class="btn-blue" style="font-size: 0.7rem;" onclick="exportExcelTechs()">📊 EXCEL TECS</button>
@@ -393,14 +392,21 @@
 
     <div id="users" class="tab-content">
         <div class="panel">
-            <h3>🔑 GESTÃO DE OPERADORES</h3>
+            <h3>🔑 GESTÃO DE ACESSOS E PESSOAL</h3>
             <div class="grid">
                 <div>
+                    <h4>ADICIONAR OPERADOR</h4>
                     <input type="text" id="new-user-name" placeholder="Nome do Operador">
                     <input type="password" id="new-user-pass" placeholder="Senha">
                     <button class="btn-green" onclick="addUser()">CADASTRAR OPERADOR</button>
+                    <hr style="margin: 20px 0; border-color: #333;">
+                    <h4>LISTA DE OPERADORES</h4>
+                    <div id="list-users" class="list-box" style="height: 150px;"></div>
                 </div>
-                <div id="list-users" class="list-box"></div>
+                <div>
+                    <h4>LISTA DE TÉCNICOS CADASTRADOS</h4>
+                    <div id="list-techs-management" class="list-box" style="height: 400px;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -500,6 +506,7 @@
         }
         if(id === 'entrada-pendente') renderPendentes();
         if(id === 'cabos-tecnico') initSignaturePad();
+        if(id === 'users') renderUsersLists();
     }
 
     // ASSINATURA CABOS
@@ -623,7 +630,7 @@
                     <tbody>${lastCargaCabos.items.map(i => `<tr style="border-bottom:1px solid #ddd;"><td style="padding:8px;">${i.tipo}</td><td style="padding:8px; text-align:right;">${i.qtd} m</td></tr>`).join('')}</tbody>
                 </table>
                 <p style="background: #f9f9f9; padding: 10px; border: 1px dashed #000; font-weight: bold; margin-top:20px; font-size:12px;">
-                    ⚠️ PRAZO DE PRESTAÇÃO DE CONTAS: O material acima possui um prazo de utilização de até 10 dias corridos a partir desta data.
+                    ⚠️ AVISO DE CONTROLE: Tenha o máximo cuidado com os cabos retirados. Mantenha sempre o controle rigoroso da metragem utilizada e o lançamento correto no sistema para evitar divergências em seu estoque.
                 </p>
                 <div style="margin-top: 30px;">
                     <p style="font-size: 12px;"><b>ASSINATURA DIGITAL:</b></p>
@@ -635,7 +642,7 @@
         document.getElementById('btn-save-cabos').style.display = 'block';
     }
 
-    // COMPROVANTE DE SAÍDA CARGA (CORREÇÃO E ESTILIZAÇÃO)
+    // COMPROVANTE DE SAÍDA CARGA
     function imprimirComprovante() {
         if(!lastCarga) return;
         const html = `
@@ -691,7 +698,7 @@
         document.getElementById('btn-confirm-carga').style.display = 'block';
     }
 
-    // CONFERÊNCIA MALA - COMPROVANTE (CORRIGIDO)
+    // CONFERÊNCIA MALA - COMPROVANTE
     function imprimirConferencia() {
         const idx = document.getElementById('sel-view-mala').value;
         if(idx === '') return;
@@ -764,80 +771,39 @@
         window.print();
     }
 
-    // BACKUP COMPLETO (SISTEMA INTEGRAL)
+    // BACKUP COMPLETO
     function gerarBackupCompleto() {
         try {
             const wb = XLSX.utils.book_new();
-            
-            // 1. ESTOQUE ADM
-            const dataAdm = db.master.filter(i => i.status === 'estoque').map(i => ({ 
-                "Serial": i.serial, "Modelo": i.modelo, "Data Entrada": i.dataHora, "Operador": i.operador 
-            }));
+            const dataAdm = db.master.filter(i => i.status === 'estoque').map(i => ({ "Serial": i.serial, "Modelo": i.modelo, "Data Entrada": i.dataHora, "Operador": i.operador }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataAdm), "ESTOQUE_ADM");
-
-            // 2. ESTOQUE TECNICOS (MALA)
-            const dataTechs = []; 
-            db.techs.forEach(t => {
-                t.mala.forEach(m => dataTechs.push({ 
-                    "Técnico": t.name, "Login": t.login, "Serial": m.serial, "Modelo": m.modelo, "Carga": m.dataHora, "Operador": m.operador 
-                }));
-            });
+            const dataTechs = []; db.techs.forEach(t => { t.mala.forEach(m => dataTechs.push({ "Técnico": t.name, "Login": t.login, "Serial": m.serial, "Modelo": m.modelo, "Carga": m.dataHora, "Operador": m.operador })); });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTechs), "ESTOQUE_TECNICOS");
-
-            // 3. HISTÓRICO DE MOVIMENTAÇÕES
-            const dataLogs = db.logs.map(l => ({
-                "Data": l.date, "Tipo": l.type, "Técnico": l.tech, "Qtde Itens": l.items ? l.items.length : 0, "Operador": l.op
-            }));
+            const dataLogs = db.logs.map(l => ({ "Data": l.date, "Tipo": l.type, "Técnico": l.tech, "Qtde Itens": l.items ? l.items.length : 0, "Operador": l.op }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataLogs), "HIST_MOVIMENTACOES");
-
-            // 4. CABOS E MATERIAIS
-            const dataCabos = [];
-            if(db.cabosLogs) {
-                db.cabosLogs.forEach(c => {
-                    c.items.forEach(it => {
-                        dataCabos.push({ "Data": c.date, "Técnico": c.techName, "Material": it.tipo, "Qtd": it.qtd, "Operador": c.op });
-                    });
-                });
-            }
+            const dataCabos = []; if(db.cabosLogs) { db.cabosLogs.forEach(c => { c.items.forEach(it => { dataCabos.push({ "Data": c.date, "Técnico": c.techName, "Material": it.tipo, "Qtd": it.qtd, "Operador": c.op }); }); }); }
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataCabos), "LOG_CABOS");
-
-            // 5. BAIXAS (REMOVIDOS)
-            const dataBaixas = db.baixas ? db.baixas.map(b => ({
-                "Serial": b.serial, "Modelo": b.modelo, "Data Baixa": b.data, "Operador": b.op
-            })) : [];
+            const dataBaixas = db.baixas ? db.baixas.map(b => ({ "Serial": b.serial, "Modelo": b.modelo, "Data Baixa": b.data, "Operador": b.op })) : [];
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataBaixas), "BAIXAS_SISTEMA");
-
             XLSX.writeFile(wb, `BACKUP_TOTAL_CONSTRUCABLE_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
-            notify("Backup completo gerado com sucesso!");
-        } catch (e) {
-            notify("Erro ao gerar backup!", "error");
-        }
+            notify("Backup completo gerado!");
+        } catch (e) { notify("Erro no backup!", "error"); }
     }
 
-    // EXPORTAÇÕES DA ABA ADM (CORREÇÕES)
+    // EXPORTAÇÕES ADM
     function exportExcelADM() {
         const data = db.master.filter(i => i.status === 'estoque').map(i => ({ "Serial": i.serial, "Modelo": i.modelo, "Data": i.dataHora, "Op": i.operador }));
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "ADM");
-        XLSX.writeFile(wb, "ESTOQUE_ADM.xlsx");
+        XLSX.writeFile(XLSX.utils.book_new(), "ESTOQUE_ADM.xlsx");
     }
 
     function exportExcelTechs() {
-        const data = [];
-        db.techs.forEach(t => t.mala.forEach(m => data.push({ "Técnico": t.name, "Serial": m.serial, "Modelo": m.modelo, "Data": m.dataHora })));
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "TECNICOS");
-        XLSX.writeFile(wb, "ESTOQUE_TECNICOS.xlsx");
+        const data = []; db.techs.forEach(t => t.mala.forEach(m => data.push({ "Técnico": t.name, "Serial": m.serial, "Modelo": m.modelo, "Data": m.dataHora })));
+        XLSX.writeFile(XLSX.utils.book_new(), "ESTOQUE_TECNICOS.xlsx");
     }
 
     function exportExcelLogs() {
         const data = db.logs.map(l => ({ "Data": l.date, "Tipo": l.type, "Tecnico": l.tech, "Op": l.op }));
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "LOGS");
-        XLSX.writeFile(wb, "HISTORICO_GERAL.xlsx");
+        XLSX.writeFile(XLSX.utils.book_new(), "HISTORICO_GERAL.xlsx");
     }
 
     // GESTÃO DE ENTRADA E MASTER
@@ -880,7 +846,6 @@
         const mod = document.getElementById('lote-modelo').value.trim().toUpperCase();
         const txt = document.getElementById('lote-entrada-txt').value.trim().toUpperCase();
         if(!mod || !txt) return notify("Preencha Modelo e Seriais!", "error");
-        
         const sns = txt.split('\n').map(s => s.trim()).filter(s => s !== "");
         let count = 0;
         sns.forEach(sn => {
@@ -889,8 +854,7 @@
                 count++;
             }
         });
-        document.getElementById('lote-entrada-txt').value = '';
-        updateAll();
+        document.getElementById('lote-entrada-txt').value = ''; updateAll();
         notify(`${count} itens adicionados ao ADM.`);
     }
 
@@ -900,7 +864,7 @@
     function addUser() {
         const n = document.getElementById('new-user-name').value.trim().toUpperCase();
         const p = document.getElementById('new-user-pass').value.trim();
-        if(n && p) { db.users.push({name: n, pass: p}); updateAll(); notify("Operador cadastrado!"); }
+        if(n && p) { db.users.push({name: n, pass: p}); updateAll(); renderUsersLists(); notify("Operador cadastrado!"); }
     }
 
     function isSerialInAnyMala(sn) { return db.techs.some(t => t.mala.some(m => m.serial === sn)); }
@@ -925,9 +889,7 @@
         queue.forEach(q => {
             const mIdx = db.master.findIndex(i => i.serial === q.serial);
             if(mIdx !== -1){
-                db.master[mIdx].status = 'tecnico';
-                db.master[mIdx].dataHora = h;
-                db.master[mIdx].operador = currentUser;
+                db.master[mIdx].status = 'tecnico'; db.master[mIdx].dataHora = h; db.master[mIdx].operador = currentUser;
                 tec.mala.push({...db.master[mIdx]});
             }
         });
@@ -951,17 +913,31 @@
         const opts = '<option value="">Selecione...</option>' + db.techs.map((t,i) => `<option value="${i}">${t.name} (${t.login})</option>`).join('');
         ['sel-tech-carga', 'sel-view-mala', 'sel-tech-origem', 'sel-tech-cabos'].forEach(id => { if(document.getElementById(id)) document.getElementById(id).innerHTML = opts; });
         document.getElementById('sel-tech-destino').innerHTML = opts + '<option value="ADM">🏠 ESTOQUE ADM</option>';
-        document.getElementById('list-techs').innerHTML = db.techs.map((t, i) => `
+        renderUsersLists();
+    }
+
+    function renderUsersLists() {
+        // Lista de Operadores
+        document.getElementById('list-users').innerHTML = db.users.map((u, i) => `
             <div class="item-row">
-                <span><b>${t.name}</b> <small>(${t.login})</small></span>
-                <span style="color:var(--claro-red)">${t.mala.length} itens</span>
-                <button class="btn-del" onclick="removerTecnico(${i})">✖</button>
+                <span><b>${u.name}</b></span>
+                ${u.name !== 'ADMIN' ? `<button class="btn-del" onclick="db.users.splice(${i},1); save(); renderUsersLists();">✖</button>` : '<i>Padrao</i>'}
+            </div>`).join('');
+            
+        // Lista de Técnicos na aba Gestão
+        document.getElementById('list-techs-management').innerHTML = db.techs.map((t, i) => `
+            <div class="item-row">
+                <div style="display:flex; flex-direction:column;">
+                    <span><b>${t.name}</b> <small>(${t.login})</small></span>
+                    <small style="color:var(--claro-red)">${t.mala.length} ativos na mala</small>
+                </div>
+                <button class="btn-del" onclick="removerTecnico(${i})">REMOVER TÉCNICO ✖</button>
             </div>`).join('');
     }
 
     function removerTecnico(idx) {
         if(db.techs[idx].mala.length > 0) return notify("ERRO: Técnico possui itens!", "error");
-        if(confirm("Excluir técnico?")) { db.techs.splice(idx, 1); updateAll(); }
+        if(confirm(`Excluir técnico ${db.techs[idx].name}?`)) { db.techs.splice(idx, 1); updateAll(); notify("Técnico removido!"); }
     }
 
     function renderStats() { 
@@ -1029,19 +1005,10 @@
         const s = document.getElementById('mala-status-sinalizador');
         if(totalConferidos < totalMala) { s.className = "status-badge status-red"; s.innerHTML = `⬤ PENDENTE (${totalConferidos}/${totalMala})`; }
         else { s.className = "status-badge status-green"; s.innerHTML = `⬤ CONFERIDO (${totalConferidos})`; }
-        
         const mFamilies = {};
-        tec.mala.forEach(m => { 
-            const f = getFamily(m.modelo);
-            mFamilies[f] = (mFamilies[f] || 0) + 1; 
-        });
+        tec.mala.forEach(m => { const f = getFamily(m.modelo); mFamilies[f] = (mFamilies[f] || 0) + 1; });
         document.getElementById('sum-mala-tecnico').innerHTML = Object.keys(mFamilies).sort().map(f => `<tr><td>${f}</td><td>${mFamilies[f]}</td></tr>`).join('');
-
-        document.getElementById('list-mala-items').innerHTML = tec.mala.map((i, subIdx) => `
-            <div class="item-row ${conferidos.has(i.serial) ? 'checked' : ''}">
-                <div style="display:flex; flex-direction:column;"><span><b>${i.serial}</b> - ${i.modelo}</span><small style="opacity:0.6; font-size:0.7rem;">🕒 ${i.dataHora}</small></div>
-                <button class="btn-del" onclick="db.techs[${idx}].mala.splice(${subIdx},1);renderMalaCompleta(${idx});updateAll();">✖</button>
-            </div>`).join('');
+        document.getElementById('list-mala-items').innerHTML = tec.mala.map((i, subIdx) => `<div class="item-row ${conferidos.has(i.serial) ? 'checked' : ''}"><div style="display:flex; flex-direction:column;"><span><b>${i.serial}</b> - ${i.modelo}</span><small style="opacity:0.6; font-size:0.7rem;">🕒 ${i.dataHora}</small></div><button class="btn-del" onclick="db.techs[${idx}].mala.splice(${subIdx},1);renderMalaCompleta(${idx});updateAll();">✖</button></div>`).join('');
     }
 
     function renderMalaOrigem(idx) {
@@ -1082,7 +1049,6 @@
         const oIdx = document.getElementById('sel-tech-origem').value;
         const dIdx = document.getElementById('sel-tech-destino').value;
         if(oIdx === '' || dIdx === '' || transQueue.length === 0) return notify("Dados incompletos!", "error");
-        
         transQueue.forEach(q => {
             db.techs[oIdx].mala = db.techs[oIdx].mala.filter(m => m.serial !== q.serial);
             const h = now();
@@ -1097,8 +1063,7 @@
                 }
             }
         });
-        notify("Transferência concluída!");
-        transQueue = []; renderTransQueue(); renderMalaOrigem(oIdx); updateAll();
+        notify("Transferência concluída!"); transQueue = []; renderTransQueue(); renderMalaOrigem(oIdx); updateAll();
     }
 
     document.getElementById('file-upload').addEventListener('change', function(e) {
@@ -1109,9 +1074,7 @@
             json.forEach(row => { 
                 const sn = (row['Endereçavel Principal'] || row['Número Série'] || row['Serial'] || '').toString().trim().toUpperCase(); 
                 const mod = (row['Modelo'] || row['Descrição'] || '').toString().trim().toUpperCase(); 
-                if(sn && mod && !db.master.some(i => i.serial === sn)) {
-                    db.pendentes.push({ serial: sn, modelo: mod, status: 'pendente', dataHora: now(), operador: currentUser });
-                }
+                if(sn && mod && !db.master.some(i => i.serial === sn)) db.pendentes.push({ serial: sn, modelo: mod, status: 'pendente', dataHora: now(), operador: currentUser });
             });
             save(); updateAll(); notify("Importado para lista de espera.");
         }; reader.readAsArrayBuffer(e.target.files[0]);
@@ -1123,27 +1086,13 @@
     
     function executarBaixa() {
         const sns = document.getElementById('txt-baixa').value.split('\n').map(s => s.trim().toUpperCase()).filter(s => s !== "");
-        let removidos = 0;
-        if(!db.baixas) db.baixas = [];
-        
+        let removidos = 0; if(!db.baixas) db.baixas = [];
         sns.forEach(sn => { 
             const mIdx = db.master.findIndex(m => m.serial === sn);
-            if(mIdx !== -1) { 
-                db.baixas.push({ serial: sn, modelo: db.master[mIdx].modelo, data: now(), op: currentUser });
-                db.master.splice(mIdx, 1); 
-                removidos++; 
-            }
-            db.techs.forEach(t => { 
-                const subIdx = t.mala.findIndex(m => m.serial === sn); 
-                if(subIdx !== -1) { 
-                    db.baixas.push({ serial: sn, modelo: t.mala[subIdx].modelo, data: now(), op: currentUser });
-                    t.mala.splice(subIdx, 1); 
-                    removidos++; 
-                } 
-            });
+            if(mIdx !== -1) { db.baixas.push({ serial: sn, modelo: db.master[mIdx].modelo, data: now(), op: currentUser }); db.master.splice(mIdx, 1); removidos++; }
+            db.techs.forEach(t => { const subIdx = t.mala.findIndex(m => m.serial === sn); if(subIdx !== -1) { db.baixas.push({ serial: sn, modelo: t.mala[subIdx].modelo, data: now(), op: currentUser }); t.mala.splice(subIdx, 1); removidos++; } });
         });
-        document.getElementById('txt-baixa').value = ''; updateAll(); 
-        notify(`${removidos} registros baixados e salvos.`);
+        document.getElementById('txt-baixa').value = ''; updateAll(); notify(`${removidos} registros baixados.`);
     }
 
     function addTech() { 
