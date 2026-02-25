@@ -679,7 +679,7 @@
                 </table>
                 <div style="margin-top: 25px; padding: 15px; border: 1px dashed #000; background: #fffcf0; font-size: 13px; line-height: 1.5;">
                     <p><b>📜 TERMO DE RESPONSABILIDADE:</b></p>
-                    <p>O técnico acima identificado declara ter recebido os equipamentos em perfeito estado de conservação. O prazo para prestação de contas (baixa em assinante) ou devolução física ao estoque ADM é de <b>10 (dez) dias corridos</b>. Em caso de perda ou extravio, o mesmo ficará sujeito às normas administrativas da empresa.</p>
+                    <p>O técnico acima identificado declara ter recebido os equipamentos em perfeito estado de conservação. Em caso de perda ou extravio, o mesmo ficará sujeito às normas administrativas da empresa.</p>
                 </div>
                 <div style="margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; text-align: center;">
                     <div style="border-top: 1px solid #000; padding-top: 10px;">
@@ -750,7 +750,7 @@
                     <h3 style="margin:0; color:#ee2e24;">⚠️ ALERTA DE PENDÊNCIA CRÍTICA</h3>
                     <p style="margin:10px 0; font-size:14px; text-align:justify;">
                         Atenção! Foram identificados <b>${pendentes.length} item(ns)</b> ausentes nesta conferência física. 
-                        Conforme normas internas, o técnico possui o prazo de <b>10 (dez) dias corridos</b> para localizar o material ou realizar o ressarcimento/prestação de contas.
+                        O técnico possui o prazo de <b>10 (dez) dias corridos</b> para localizar o material ou realizar o ressarcimento/prestação de contas.
                     </p>
                 </div>` : `
                 <div style="margin-top:25px; padding:15px; border: 2px solid #00ff64; background: #f5fff5; border-radius: 8px; text-align:center;">
@@ -771,39 +771,75 @@
         window.print();
     }
 
-    // BACKUP COMPLETO
+    // BACKUP COMPLETO (BOTÃO DO MENU)
     function gerarBackupCompleto() {
         try {
             const wb = XLSX.utils.book_new();
             const dataAdm = db.master.filter(i => i.status === 'estoque').map(i => ({ "Serial": i.serial, "Modelo": i.modelo, "Data Entrada": i.dataHora, "Operador": i.operador }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataAdm), "ESTOQUE_ADM");
-            const dataTechs = []; db.techs.forEach(t => { t.mala.forEach(m => dataTechs.push({ "Técnico": t.name, "Login": t.login, "Serial": m.serial, "Modelo": m.modelo, "Carga": m.dataHora, "Operador": m.operador })); });
+            
+            const dataTechs = []; 
+            db.techs.forEach(t => { t.mala.forEach(m => dataTechs.push({ "Técnico": t.name, "Login": t.login, "Serial": m.serial, "Modelo": m.modelo, "Carga": m.dataHora, "Operador": m.operador })); });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataTechs), "ESTOQUE_TECNICOS");
+            
             const dataLogs = db.logs.map(l => ({ "Data": l.date, "Tipo": l.type, "Técnico": l.tech, "Qtde Itens": l.items ? l.items.length : 0, "Operador": l.op }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataLogs), "HIST_MOVIMENTACOES");
-            const dataCabos = []; if(db.cabosLogs) { db.cabosLogs.forEach(c => { c.items.forEach(it => { dataCabos.push({ "Data": c.date, "Técnico": c.techName, "Material": it.tipo, "Qtd": it.qtd, "Operador": c.op }); }); }); }
+            
+            const dataCabos = []; 
+            if(db.cabosLogs) { db.cabosLogs.forEach(c => { c.items.forEach(it => { dataCabos.push({ "Data": c.date, "Técnico": c.techName, "Material": it.tipo, "Qtd": it.qtd, "Operador": c.op }); }); }); }
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataCabos), "LOG_CABOS");
-            const dataBaixas = db.baixas ? db.baixas.map(b => ({ "Serial": b.serial, "Modelo": b.modelo, "Data Baixa": b.data, "Operador": b.op })) : [];
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataBaixas), "BAIXAS_SISTEMA");
+            
             XLSX.writeFile(wb, `BACKUP_TOTAL_CONSTRUCABLE_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
             notify("Backup completo gerado!");
         } catch (e) { notify("Erro no backup!", "error"); }
     }
 
-    // EXPORTAÇÕES ADM
+    // FUNÇÕES DE EXPORTAÇÃO DOS BOTÕES NA ABA ESTOQUE (ADICIONADO CONFORME PEDIDO)
     function exportExcelADM() {
-        const data = db.master.filter(i => i.status === 'estoque').map(i => ({ "Serial": i.serial, "Modelo": i.modelo, "Data": i.dataHora, "Op": i.operador }));
-        XLSX.writeFile(XLSX.utils.book_new(), "ESTOQUE_ADM.xlsx");
+        if(db.master.length === 0) return notify("Estoque ADM vazio!", "error");
+        const data = db.master.filter(i => i.status === 'estoque').map(i => ({ 
+            "SERIAL": i.serial, 
+            "MODELO": i.modelo, 
+            "STATUS": "ESTOQUE ADM",
+            "DATA ENTRADA": i.dataHora, 
+            "OPERADOR": i.operador || '---'
+        }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "ESTOQUE_ADM");
+        XLSX.writeFile(wb, "ESTOQUE_ADM.xlsx");
+        notify("Excel ADM gerado!");
     }
 
     function exportExcelTechs() {
-        const data = []; db.techs.forEach(t => t.mala.forEach(m => data.push({ "Técnico": t.name, "Serial": m.serial, "Modelo": m.modelo, "Data": m.dataHora })));
-        XLSX.writeFile(XLSX.utils.book_new(), "ESTOQUE_TECNICOS.xlsx");
+        const data = []; 
+        db.techs.forEach(t => t.mala.forEach(m => data.push({ 
+            "TÉCNICO": t.name, 
+            "LOGIN": t.login,
+            "SERIAL": m.serial, 
+            "MODELO": m.modelo, 
+            "DATA CARGA": m.dataHora,
+            "OP CARGA": m.operador || '---'
+        })));
+        if(data.length === 0) return notify("Nenhum item com técnicos!", "error");
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "ESTOQUE_TECS");
+        XLSX.writeFile(wb, "ESTOQUE_TECNICOS.xlsx");
+        notify("Excel Técnicos gerado!");
     }
 
     function exportExcelLogs() {
-        const data = db.logs.map(l => ({ "Data": l.date, "Tipo": l.type, "Tecnico": l.tech, "Op": l.op }));
-        XLSX.writeFile(XLSX.utils.book_new(), "HISTORICO_GERAL.xlsx");
+        if(db.logs.length === 0) return notify("Histórico vazio!", "error");
+        const data = db.logs.map(l => ({ 
+            "DATA": l.date, 
+            "TIPO": l.type, 
+            "TÉCNICO": l.tech || '---', 
+            "QTDE": l.items ? l.items.length : 0,
+            "OPERADOR": l.op || '---' 
+        }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "HISTORICO");
+        XLSX.writeFile(wb, "HISTORICO_GERAL.xlsx");
+        notify("Excel Histórico gerado!");
     }
 
     // GESTÃO DE ENTRADA E MASTER
@@ -917,14 +953,12 @@
     }
 
     function renderUsersLists() {
-        // Lista de Operadores
         document.getElementById('list-users').innerHTML = db.users.map((u, i) => `
             <div class="item-row">
                 <span><b>${u.name}</b></span>
                 ${u.name !== 'ADMIN' ? `<button class="btn-del" onclick="db.users.splice(${i},1); save(); renderUsersLists();">✖</button>` : '<i>Padrao</i>'}
             </div>`).join('');
             
-        // Lista de Técnicos na aba Gestão
         document.getElementById('list-techs-management').innerHTML = db.techs.map((t, i) => `
             <div class="item-row">
                 <div style="display:flex; flex-direction:column;">
